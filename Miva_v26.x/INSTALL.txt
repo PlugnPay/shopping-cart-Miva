@@ -1,0 +1,49 @@
+====================================================
+PlugnPay Remote API Module (BETA)
+Payment module for Miva Merchant 26.x
+====================================================
+
+***** IMPORTANT NOTES *****
+This module is provided "AS IS" and is currently BETA.
+Validate thoroughly on a non-production 26.x store before go-live.
+Limited technical support assistance will be given to help
+diagnose/address problems with this module.
+
+- Status: BETA
+- Target: Miva Merchant 26.x (Module API 10.00)
+- Endpoint: https://pay1.plugnpay.com/payment/pnpremote.cgi
+- Card data is collected on your Miva storefront (PCI scope).
+- Default authtype: authonly (settle / capture in PlugnPay Admin).
+- No Miva Admin Capture / Void / Refund in v1.
+- You must compile plugnpayapi.mv to plugnpayapi.mvc before upload.
+***************************
+
+To Install:
+
+1. Download miva_26_api_module.zip from this folder
+   (or use the src/ tree in this repository).
+
+2. Compile the module source:
+     plugnpayapi.mv  →  plugnpayapi.mvc
+   Use your MivaScript / Empresa compiler. Modern Miva requires a
+   compiled .mvc for domain module install.
+
+3. In Miva Admin:
+     Settings → Domain Settings → Modules → Add Module
+     Upload plugnpayapi.mvc → Add
+
+4. Enable for the store and open Payment settings for
+   "PlugnPay Remote API":
+     - Publisher Name
+     - Remote Client Password (Security Admin remote password)
+     - Authorization Type (authonly or authpostauth)
+     - Require CVV / prevent gateway customer email as needed
+
+5. Place a test order. On authonly approvals, capture in PlugnPay
+   Merchant Admin when ready to settle.
+
+Connectivity test from the Miva server:
+
+  curl -d "publisher-name=YOUR_ACCOUNT&publisher-password=YOUR_REMOTE_PASSWORD&mode=auth&authtype=authonly&card-name=cardtest&card-number=4111111111111111&card-exp=01/30&card-cvv=123&card-amount=1.23" https://pay1.plugnpay.com/payment/pnpremote.cgi
+
+You should receive a URL-encoded response containing FinalStatus=…

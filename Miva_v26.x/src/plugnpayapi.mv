@@ -1,0 +1,805 @@
+<MIVA STANDARDOUTPUTLEVEL = "">
+
+<MvCOMMENT>
+<MvCOMMENT>
+|
+| PlugnPay Remote API Payment Module for Miva Merchant 26.x
+|
+| Posts card-not-present authorizations to:
+|   https://pay1.plugnpay.com/payment/pnpremote.cgi
+|
+| Module API patterned on Miva LSK payment modules (COD / MOD10):
+|   Module_Description, PaymentModule_Runtime_Authorize, vis_payment settings.
+|
+| Transport: MvCALL HTTPS POST (no commerce library / DLL required).
+| Field style: underscore names + convert=underscores (PlugnPay-compatible).
+|
+| Capture / void / refund are NOT implemented in Miva Admin — settle or
+| reverse in PlugnPay Merchant Admin (peer-cart Remote API convention).
+|
+| Prefix         : MER-PAY-PNP-
+| Next Error Code: 20
+|
+</MvCOMMENT>
+</MvCOMMENT>
+
+<MvFUNCTION NAME = "Module_Description" PARAMETERS = "module var" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.module:code"		VALUE = "plugnpayapi">
+	<MvASSIGN NAME = "l.module:name"		VALUE = "PlugnPay Remote API (Beta)">
+	<MvASSIGN NAME = "l.module:provider"	VALUE = "PlugnPay Technologies">
+	<MvASSIGN NAME = "l.module:version"		VALUE = "1.0000">
+	<MvASSIGN NAME = "l.module:api_ver"		VALUE = "10.00">
+	<MvASSIGN NAME = "l.module:description"	VALUE = "BETA. Collect card details on your Miva storefront and authorize through PlugnPay Remote API (pnpremote.cgi). Supports auth-only and sale (authpostauth). Capture / void / refund are performed in PlugnPay Merchant Admin. Validate thoroughly before production use.">
+	<MvASSIGN NAME = "l.module:features"	VALUE = "data_store, payment, vis_payment">
+</MvFUNCTION>
+
+<MvCOMMENT>
+<MvCOMMENT>
+|
+| Store-level Module Data Support Feature (data_store)
+|
+</MvCOMMENT>
+</MvCOMMENT>
+
+<MvFUNCTION NAME = "Module_Install_Store" PARAMETERS = "module var" STANDARDOUTPUTLEVEL = "" ERROROUTPUTLEVEL = "">
+	<MvQUERY NAME	= "Merchant"
+			 QUERY	= "{ 'CREATE TABLE ' $ g.Store_Table_Prefix $ 'PlugNPayAPI
+						  (
+							publisher_name		' $ [ g.Module_Library_Native_DBAPI ].DB_Type_CHAR( 64 )	$ ',
+							publisher_password	' $ [ g.Module_Library_Native_DBAPI ].DB_Type_CHAR( 64 )	$ ',
+							publisher_email		' $ [ g.Module_Library_Native_DBAPI ].DB_Type_CHAR( 128 )	$ ',
+							authtype			' $ [ g.Module_Library_Native_DBAPI ].DB_Type_CHAR( 16 )	$ ',
+							use_cvv				' $ [ g.Module_Library_Native_DBAPI ].DB_Type_BOOL()		$ ',
+							dontsndmail			' $ [ g.Module_Library_Native_DBAPI ].DB_Type_BOOL()		$ '
+						  )' }">
+	<MvIF EXPR = "{ g.MvQUERY_Error }">
+		<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Library_Utilities ].Error( 'MER-PAY-PNP-00001', g.MvQUERY_Error ) }">
+	</MvIF>
+
+	<MvASSIGN NAME = "l.settings"						VALUE = "">
+	<MvASSIGN NAME = "l.settings:publisher_name"		VALUE = "">
+	<MvASSIGN NAME = "l.settings:publisher_password"	VALUE = "">
+	<MvASSIGN NAME = "l.settings:publisher_email"		VALUE = "">
+	<MvASSIGN NAME = "l.settings:authtype"				VALUE = "authonly">
+	<MvASSIGN NAME = "l.settings:use_cvv"				VALUE = 1>
+	<MvASSIGN NAME = "l.settings:dontsndmail"			VALUE = 1>
+
+	<MvFUNCTIONRETURN VALUE = "{ PlugNPayAPI_Insert( l.settings ) }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Upgrade_Store" PARAMETERS = "module var, version" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Uninstall_Store" PARAMETERS = "module var" STANDARDOUTPUTLEVEL = "" ERROROUTPUTLEVEL = "">
+	<MvQUERY NAME	= "Merchant"
+			 QUERY	= "{ 'DROP TABLE ' $ g.Store_Table_Prefix $ 'PlugNPayAPI' }">
+
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvCOMMENT>
+<MvCOMMENT>
+|
+| Payment Processing Feature (payment)
+|
+</MvCOMMENT>
+</MvCOMMENT>
+
+<MvFUNCTION NAME = "PaymentModule_Capabilities" PARAMETERS = "module var, capabilities var" STANDARDOUTPUTLEVEL = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Method_Capabilities" PARAMETERS = "module var, method_code, capabilities var" STANDARDOUTPUTLEVEL = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_LeftNavigation" PARAMETERS = "module var, indent" STANDARDOUTPUTLEVEL = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Manipulate_Shipping" PARAMETERS = "module var, data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Methods" PARAMETERS = "module var, methods var" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.methods" INDEX = 1 MEMBER = "code"	VALUE = "credit">
+	<MvASSIGN NAME = "l.methods" INDEX = 1 MEMBER = "name"	VALUE = "Credit Card (PlugnPay)">
+
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Enabled_Methods" PARAMETERS = "module var, methods var" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.methods" INDEX = 1 MEMBER = "code"	VALUE = "credit">
+	<MvASSIGN NAME = "l.methods" INDEX = 1 MEMBER = "name"	VALUE = "Credit Card (PlugnPay)">
+
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_URL" PARAMETERS = "module var" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Description" PARAMETERS = "module var, data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "Credit Card">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Message" PARAMETERS = "module var, data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Hide_Additional_Fields" PARAMETERS = "module var, data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 0>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Fields" PARAMETERS = "module var, data" STANDARDOUTPUTLEVEL = "">
+	<MvIF EXPR = "{ NOT PlugNPayAPI_Load_Cached( l.settings ) }">
+		<MvFUNCTIONRETURN VALUE = "cc_name,cc_number,cc_exp,cc_cvv">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.settings:use_cvv }">
+		<MvFUNCTIONRETURN VALUE = "cc_name,cc_number,cc_exp,cc_cvv">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "cc_name,cc_number,cc_exp">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Prompt" PARAMETERS = "module var, data, field_id" STANDARDOUTPUTLEVEL = "">
+	<MvIF EXPR = "{ l.field_id EQ 'cc_name' }">		<MvFUNCTIONRETURN VALUE = "Name on Card:">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'cc_number' }">	<MvFUNCTIONRETURN VALUE = "Card Number:">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'cc_exp' }">		<MvFUNCTIONRETURN VALUE = "Expiration Date:">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'cc_cvv' }">		<MvFUNCTIONRETURN VALUE = "CVV:">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Invalid" PARAMETERS = "module var, data, field_id" STANDARDOUTPUTLEVEL = "">
+	<MvIF EXPR = "{ ( l.field_id EQ 'cc_name' ) AND g.PlugNPayAPI_CardName_Invalid }">		<MvFUNCTIONRETURN VALUE = 1>
+	<MvELSEIF EXPR = "{ ( l.field_id EQ 'cc_number' ) AND g.PlugNPayAPI_CardNumber_Invalid }">	<MvFUNCTIONRETURN VALUE = 1>
+	<MvELSEIF EXPR = "{ ( l.field_id EQ 'cc_exp' ) AND g.PlugNPayAPI_CardExp_Invalid }">		<MvFUNCTIONRETURN VALUE = 1>
+	<MvELSEIF EXPR = "{ ( l.field_id EQ 'cc_cvv' ) AND g.PlugNPayAPI_CardCVV_Invalid }">		<MvFUNCTIONRETURN VALUE = 1>
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = 0>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Field" PARAMETERS = "module var, data, field_id" STANDARDOUTPUTLEVEL = "text, html, compresswhitespace">
+	<MvIF EXPR = "{ l.field_id EQ 'cc_name' }">
+		<input type="text" name="PlugNPayAPI_CardName" size="40" autocomplete="cc-name" value="{ encodeentities( g.PlugNPayAPI_CardName ) }">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'cc_number' }">
+		<input type="text" name="PlugNPayAPI_CardNumber" size="20" autocomplete="cc-number" inputmode="numeric" value="{ encodeentities( g.PlugNPayAPI_CardNumber ) }">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'cc_exp' }">
+		<select name="PlugNPayAPI_CardExp_Month" autocomplete="cc-exp-month">
+			<MvDO FILE = "{ g.Module_Library_Utilities }" NAME = "l.foo" VALUE = "{ DrawOption_SelectOne() }">
+			<MvASSIGN NAME = "l.month" VALUE = 1>
+			<MvWHILE EXPR = "{ l.month LE 12 }">
+				<MvIF EXPR = "{ g.PlugNPayAPI_CardExp_Month EQ l.month }">
+					<option value="{ l.month }" selected><MvEVAL EXPR = "{ padl( l.month, 2, '0' ) }"></option>
+				<MvELSE>
+					<option value="{ l.month }"><MvEVAL EXPR = "{ padl( l.month, 2, '0' ) }"></option>
+				</MvIF>
+				<MvASSIGN NAME = "l.month" VALUE = "{ l.month + 1 }">
+			</MvWHILE>
+		</select>
+		/
+		<MvASSIGN NAME = "l.year" VALUE = "{ s.dyn_tm_year }">
+		<MvASSIGN NAME = "l.count" VALUE = 1>
+		<select name="PlugNPayAPI_CardExp_Year" autocomplete="cc-exp-year">
+			<MvDO FILE = "{ g.Module_Library_Utilities }" NAME = "l.foo" VALUE = "{ DrawOption_SelectOne() }">
+			<MvWHILE EXPR = "{ l.count LE 25 }">
+				<MvIF EXPR = "{ g.PlugNPayAPI_CardExp_Year EQ l.year }">
+					<option value="{ l.year }" selected><MvEVAL EXPR = "{ l.year }"></option>
+				<MvELSE>
+					<option value="{ l.year }"><MvEVAL EXPR = "{ l.year }"></option>
+				</MvIF>
+				<MvASSIGN NAME = "l.year" VALUE = "{ l.year + 1 }">
+				<MvASSIGN NAME = "l.count" VALUE = "{ l.count + 1 }">
+			</MvWHILE>
+		</select>
+	<MvELSEIF EXPR = "{ l.field_id EQ 'cc_cvv' }">
+		<input type="text" name="PlugNPayAPI_CardCVV" size="4" maxlength="4" autocomplete="cc-csc" inputmode="numeric" value="">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Validate" PARAMETERS = "module var, pay_data" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.valid" VALUE = 1>
+
+	<MvASSIGN NAME = "g.PlugNPayAPI_CardName"	VALUE = "{ trim( g.PlugNPayAPI_CardName ) }">
+	<MvASSIGN NAME = "g.PlugNPayAPI_CardNumber"	VALUE = "{ glosub( glosub( trim( g.PlugNPayAPI_CardNumber ), '-', '' ), ' ', '' ) }">
+	<MvASSIGN NAME = "g.PlugNPayAPI_CardCVV"	VALUE = "{ trim( g.PlugNPayAPI_CardCVV ) }">
+
+	<MvIF EXPR = "{ len( g.PlugNPayAPI_CardName ) EQ 0 }">
+		<MvASSIGN NAME = "l.valid"						VALUE = 0>
+		<MvASSIGN NAME = "g.PlugNPayAPI_CardName_Invalid"	VALUE = 1>
+	</MvIF>
+
+	<MvIF EXPR = "{ ( len( g.PlugNPayAPI_CardNumber ) LT 13 ) OR ( len( g.PlugNPayAPI_CardNumber ) GT 19 ) OR ( NOT isdigit( g.PlugNPayAPI_CardNumber ) ) }">
+		<MvASSIGN NAME = "l.valid"							VALUE = 0>
+		<MvASSIGN NAME = "g.PlugNPayAPI_CardNumber_Invalid"	VALUE = 1>
+	</MvIF>
+
+	<MvIF EXPR = "{ ( g.PlugNPayAPI_CardExp_Year LT s.dyn_tm_year ) OR
+					( NOT g.PlugNPayAPI_CardExp_Month ) OR
+					( NOT isdigit( g.PlugNPayAPI_CardExp_Month ) ) OR
+					( ( g.PlugNPayAPI_CardExp_Year EQ s.dyn_tm_year ) AND ( g.PlugNPayAPI_CardExp_Month LT s.dyn_tm_mon ) ) }">
+		<MvASSIGN NAME = "l.valid"						VALUE = 0>
+		<MvASSIGN NAME = "g.PlugNPayAPI_CardExp_Invalid"	VALUE = 1>
+	</MvIF>
+
+	<MvIF EXPR = "{ PlugNPayAPI_Load_Cached( l.settings ) AND l.settings:use_cvv }">
+		<MvIF EXPR = "{ ( len( g.PlugNPayAPI_CardCVV ) LT 3 ) OR ( len( g.PlugNPayAPI_CardCVV ) GT 4 ) OR ( NOT isdigit( g.PlugNPayAPI_CardCVV ) ) }">
+			<MvASSIGN NAME = "l.valid"						VALUE = 0>
+			<MvASSIGN NAME = "g.PlugNPayAPI_CardCVV_Invalid"	VALUE = 1>
+		</MvIF>
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.valid }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Report_Description" PARAMETERS = "module var, data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "Credit Card">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Report_Fields" PARAMETERS = "module var, data, secure_data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "cc_lastfour,trans_id,auth_code,avs,cvvresp,authtype">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Report_Label" PARAMETERS = "module var, field_id" STANDARDOUTPUTLEVEL = "">
+	<MvIF EXPR = "{ l.field_id EQ 'cc_lastfour' }">	<MvFUNCTIONRETURN VALUE = "Card Last 4:">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'trans_id' }">	<MvFUNCTIONRETURN VALUE = "Gateway Order ID:">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'auth_code' }">	<MvFUNCTIONRETURN VALUE = "Auth Code:">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'avs' }">			<MvFUNCTIONRETURN VALUE = "AVS:">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'cvvresp' }">		<MvFUNCTIONRETURN VALUE = "CVV Response:">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'authtype' }">	<MvFUNCTIONRETURN VALUE = "Auth Type:">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Report_Value" PARAMETERS = "module var, field_id, data, secure_data" STANDARDOUTPUTLEVEL = "">
+	<MvIF EXPR = "{ l.field_id EQ 'cc_lastfour' }">
+		<MvFUNCTIONRETURN VALUE = "{ encodeentities( l.secure_data:lastfour ) }">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'trans_id' }">
+		<MvFUNCTIONRETURN VALUE = "{ encodeentities( l.data:trans_id ) }">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'auth_code' }">
+		<MvFUNCTIONRETURN VALUE = "{ encodeentities( l.data:auth_code ) }">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'avs' }">
+		<MvFUNCTIONRETURN VALUE = "{ encodeentities( l.data:avs ) }">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'cvvresp' }">
+		<MvFUNCTIONRETURN VALUE = "{ encodeentities( l.data:cvvresp ) }">
+	<MvELSEIF EXPR = "{ l.field_id EQ 'authtype' }">
+		<MvFUNCTIONRETURN VALUE = "{ encodeentities( l.data:authtype ) }">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Authorize" PARAMETERS = "module var, module_data, total, data var, secure_data var" STANDARDOUTPUTLEVEL = "">
+	<MvCOMMENT>
+	|
+	| Legacy hook retained for admin / older paths. Runtime checkout uses
+	| PaymentModule_Runtime_Authorize which performs the gateway call.
+	|
+	</MvCOMMENT>
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Process" PARAMETERS = "module var, data var, secure_data var, order var" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Runtime_Authorize" PARAMETERS = "module var, module_data, total" STANDARDOUTPUTLEVEL = "">
+	<MvIF EXPR = "{ NOT PlugNPayAPI_Load_Cached( l.settings ) }">
+		<MvFUNCTIONRETURN VALUE = 0>
+	</MvIF>
+
+	<MvIF EXPR = "{ ( len( trim( l.settings:publisher_name ) ) EQ 0 ) OR ( len( trim( l.settings:publisher_password ) ) EQ 0 ) }">
+		<MvEVAL EXPR = "{ [ g.Module_Library_Utilities ].Message_Error( 'PlugnPay Remote API is not configured (publisher name / remote client password).' ) }">
+		<MvFUNCTIONRETURN VALUE = 0>
+	</MvIF>
+
+	<MvIF EXPR = "{ NOT PaymentModule_Payment_Validate( l.module, l.module_data ) }">
+		<MvEVAL EXPR = "{ [ g.Module_Library_Utilities ].Message_Error( 'Please correct the highlighted payment fields.' ) }">
+		<MvFUNCTIONRETURN VALUE = 0>
+	</MvIF>
+
+	<MvASSIGN NAME = "l.amount" VALUE = "{ l.total ROUND 2 }">
+	<MvIF EXPR = "{ l.amount LE 0 }">
+		<MvEVAL EXPR = "{ [ g.Module_Library_Utilities ].Message_Error( 'Order total must be greater than zero for PlugnPay authorization.' ) }">
+		<MvFUNCTIONRETURN VALUE = 0>
+	</MvIF>
+
+	<MvIF EXPR = "{ NOT PlugNPayAPI_Remote_Authorize( l.settings, l.amount, l.response ) }">
+		<MvIF EXPR = "{ len( g.Error_Message ) }">
+			<MvEVAL EXPR = "{ [ g.Module_Library_Utilities ].Message_Error( encodeentities( g.Error_Message ) ) }">
+		<MvELSE>
+			<MvEVAL EXPR = "{ [ g.Module_Library_Utilities ].Message_Error( 'Unable to reach PlugnPay Remote API.' ) }">
+		</MvIF>
+		<MvFUNCTIONRETURN VALUE = 0>
+	</MvIF>
+
+	<MvIF EXPR = "{ NOT PlugNPayAPI_Response_Approved( l.response ) }">
+		<MvASSIGN NAME = "l.msg" VALUE = "{ trim( l.response:MErrMsg ) }">
+		<MvIF EXPR = "{ len( l.msg ) EQ 0 }">
+			<MvASSIGN NAME = "l.msg" VALUE = "{ 'Payment declined (' $ l.response:FinalStatus $ ')' }">
+		</MvIF>
+		<MvEVAL EXPR = "{ [ g.Module_Library_Utilities ].Message_Error( encodeentities( l.msg ) ) }">
+		<MvFUNCTIONRETURN VALUE = 0>
+	</MvIF>
+
+	<MvCOMMENT>
+	|
+	| Store only non-sensitive payment metadata on the order payment record.
+	|
+	</MvCOMMENT>
+	<MvASSIGN NAME = "l.pay_data:method"		VALUE = "credit">
+	<MvASSIGN NAME = "l.pay_data:trans_id"		VALUE = "{ l.response:orderID }">
+	<MvASSIGN NAME = "l.pay_data:auth_code"		VALUE = "{ l.response:auth_code }">
+	<MvASSIGN NAME = "l.pay_data:avs"			VALUE = "{ l.response:avs_code }">
+	<MvASSIGN NAME = "l.pay_data:cvvresp"		VALUE = "{ l.response:cvvresp }">
+	<MvASSIGN NAME = "l.pay_data:authtype"		VALUE = "{ l.settings:authtype }">
+	<MvASSIGN NAME = "l.pay_data:finalstatus"	VALUE = "{ l.response:FinalStatus }">
+
+	<MvASSIGN NAME = "l.secure_data:lastfour"	VALUE = "{ substring( g.PlugNPayAPI_CardNumber, len( g.PlugNPayAPI_CardNumber ) - 3, 4 ) }">
+
+	<MvCOMMENT>
+	|
+	| OrderPayment type:
+	|   1 = Authorization (authonly) — settle later in PlugnPay Admin
+	|   5 = Sale (authpostauth)
+	|
+	</MvCOMMENT>
+	<MvIF EXPR = "{ l.settings:authtype EQ 'authpostauth' }">
+		<MvASSIGN NAME = "l.op_type" VALUE = 5>
+	<MvELSE>
+		<MvASSIGN NAME = "l.op_type" VALUE = 1>
+	</MvIF>
+
+	<MvIF EXPR = "{ NOT [ g.Module_Library_DB ].OrderPayment_Create( g.Basket:order_id,
+																	 0,
+																	 l.op_type,
+																	 l.response:orderID,
+																	 l.amount, l.amount,
+																	 l.module:id,
+																	 l.pay_data,
+																	 l.secure_data ) }">
+		<MvFUNCTIONRETURN VALUE = 0>
+	</MvIF>
+
+	<MvCOMMENT>
+	|
+	| Clear card fields from the request scope after a successful auth.
+	|
+	</MvCOMMENT>
+	<MvASSIGN NAME = "g.PlugNPayAPI_CardNumber"	VALUE = "">
+	<MvASSIGN NAME = "g.PlugNPayAPI_CardCVV"	VALUE = "">
+
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Authorize_Methods" PARAMETERS = "module var, order var, methods var" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.methods" INDEX = 1 MEMBER = "code"	VALUE = "credit">
+	<MvASSIGN NAME = "l.methods" INDEX = 1 MEMBER = "name"	VALUE = "Credit Card (PlugnPay)">
+
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Authorize_Hide_Additional_Fields" PARAMETERS = "module var, order var, pay_data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 0>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Authorize_Fields" PARAMETERS = "module var, order var, pay_data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "{ PaymentModule_Payment_Fields( l.module, l.pay_data ) }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Authorize_Prompt" PARAMETERS = "module var, order var, pay_data, field_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "{ PaymentModule_Payment_Prompt( l.module, l.pay_data, l.field_id ) }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Authorize_Invalid" PARAMETERS = "module var, order var, pay_data, field_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "{ PaymentModule_Payment_Invalid( l.module, l.pay_data, l.field_id ) }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Authorize_Field" PARAMETERS = "module var, order var, pay_data, field_id" STANDARDOUTPUTLEVEL = "text, html, compresswhitespace">
+	<MvFUNCTIONRETURN VALUE = "{ PaymentModule_Payment_Field( l.module, l.pay_data, l.field_id ) }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Authorize_Validate" PARAMETERS = "module var, order var, pay_data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "{ PaymentModule_Payment_Validate( l.module, l.pay_data ) }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Authorize" PARAMETERS = "module var, module_data, order var, amount" STANDARDOUTPUTLEVEL = "">
+	<MvCOMMENT>
+	|
+	| Admin-initiated authorize is not implemented in v1 — use storefront checkout
+	| or PlugnPay Merchant Admin for manual charges.
+	|
+	</MvCOMMENT>
+	<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Library_Utilities ].Error( 'MER-PAY-PNP-00010', 'Admin authorize is not supported by PlugnPay Remote API v1; use storefront checkout.' ) }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_OrderPayment_Capture" PARAMETERS = "module var, order var, auth_payment var, auth_pay_data var, auth_secure_data var, amount" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Library_Utilities ].Error( 'MER-PAY-PNP-00011', 'Capture in PlugnPay Merchant Admin (not from Miva).' ) }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_OrderPayment_Refund" PARAMETERS = "module var, order var, capture_payment var, capture_pay_data var, capture_secure_data var, amount" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Library_Utilities ].Error( 'MER-PAY-PNP-00012', 'Refund in PlugnPay Merchant Admin (not from Miva).' ) }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_OrderPayment_VOID" PARAMETERS = "module var, order var, auth_payment var, auth_pay_data var, auth_secure_data var, amount" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Library_Utilities ].Error( 'MER-PAY-PNP-00013', 'Void in PlugnPay Merchant Admin (not from Miva).' ) }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Validate" PARAMETERS = "module var" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Update" PARAMETERS = "module var, data var, secure_data var" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Delete" PARAMETERS = "module var, data, secure_data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Tabs" PARAMETERS = "module var" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Content" PARAMETERS = "module var, tab, load_fields, data, secure_data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Head" PARAMETERS = "module var, tab, order var" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvCOMMENT>
+<MvCOMMENT>
+|
+| Payment Settings Screen Feature (vis_payment)
+|
+</MvCOMMENT>
+</MvCOMMENT>
+
+<MvFUNCTION NAME = "Module_Payment_Validate" PARAMETERS = "module var" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "g.Payment_PlugNPayAPI:publisher_name"		VALUE = "{ trim( g.Payment_PlugNPayAPI:publisher_name ) }">
+	<MvASSIGN NAME = "g.Payment_PlugNPayAPI:publisher_password"	VALUE = "{ trim( g.Payment_PlugNPayAPI:publisher_password ) }">
+	<MvASSIGN NAME = "g.Payment_PlugNPayAPI:publisher_email"	VALUE = "{ trim( g.Payment_PlugNPayAPI:publisher_email ) }">
+	<MvASSIGN NAME = "g.Payment_PlugNPayAPI:use_cvv"			VALUE = "{ [ g.Module_Admin ].Trim_Boolean( g.Payment_PlugNPayAPI:use_cvv ) }">
+	<MvASSIGN NAME = "g.Payment_PlugNPayAPI:dontsndmail"		VALUE = "{ [ g.Module_Admin ].Trim_Boolean( g.Payment_PlugNPayAPI:dontsndmail ) }">
+
+	<MvIF EXPR = "{ len( g.Payment_PlugNPayAPI:publisher_name ) EQ 0 }">
+		<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Admin ].FieldError( 'Settings', 'Payment_PlugNPayAPI:publisher_name', 'Publisher Name is required' ) }">
+	</MvIF>
+
+	<MvIF EXPR = "{ len( g.Payment_PlugNPayAPI:publisher_password ) EQ 0 }">
+		<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Admin ].FieldError( 'Settings', 'Payment_PlugNPayAPI:publisher_password', 'Remote Client Password is required' ) }">
+	</MvIF>
+
+	<MvIF EXPR = "{ ( g.Payment_PlugNPayAPI:authtype NE 'authonly' ) AND ( g.Payment_PlugNPayAPI:authtype NE 'authpostauth' ) }">
+		<MvASSIGN NAME = "g.Payment_PlugNPayAPI:authtype" VALUE = "authonly">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Payment_Update" PARAMETERS = "module var" STANDARDOUTPUTLEVEL = "">
+	<MvIF EXPR = "{ NOT PlugNPayAPI_Update( g.Payment_PlugNPayAPI ) }">
+		<MvFUNCTIONRETURN VALUE = 0>
+	</MvIF>
+
+	<MvEVAL EXPR = "{ [ g.Module_Admin ].Admin_Log_Action( 'MER-PAY-PNP-00006', 'PlugnPay Remote API configuration updated' ) }">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Payment_Head" PARAMETERS = "module var, tab" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Payment_Tabs" PARAMETERS = "module var" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "Settings:Settings">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Payment_Content" PARAMETERS = "module var, tab, load_fields" STANDARDOUTPUTLEVEL = "text, html, compresswhitespace">
+	<MvIF EXPR = "{ l.load_fields }">
+		<MvIF EXPR = "{ NOT PlugNPayAPI_Load( g.Payment_PlugNPayAPI ) }">
+			<MvFUNCTIONRETURN VALUE = 0>
+		</MvIF>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.tab EQ 'Settings' }">
+		<table border="0" cellpadding="2" cellspacing="0">
+		<tr><td colspan="2">
+			<p>Posts to <code>https://pay1.plugnpay.com/payment/pnpremote.cgi</code>.
+			Use your PlugnPay <b>Remote Client Password</b> (Security Administration), not the admin login password.
+			Capture / void / refund are done in PlugnPay Merchant Admin.</p>
+		</td></tr>
+
+		<tr><td nowrap>
+			<b>Publisher Name:</b>
+		</td><td width="100%">
+			<input type="text" name="Payment_PlugNPayAPI:publisher_name" size="40" value="{ encodeentities( g.Payment_PlugNPayAPI:publisher_name ) }">
+		</td></tr>
+
+		<tr><td nowrap>
+			<b>Remote Client Password:</b>
+		</td><td width="100%">
+			<input type="password" name="Payment_PlugNPayAPI:publisher_password" size="40" value="{ encodeentities( g.Payment_PlugNPayAPI:publisher_password ) }">
+		</td></tr>
+
+		<tr><td nowrap>
+			Publisher Email:
+		</td><td width="100%">
+			<input type="text" name="Payment_PlugNPayAPI:publisher_email" size="40" value="{ encodeentities( g.Payment_PlugNPayAPI:publisher_email ) }">
+			<br><font size="-1">Optional. Sent as publisher-email / notify-email.</font>
+		</td></tr>
+
+		<tr><td nowrap valign="top">
+			<b>Authorization Type:</b>
+		</td><td width="100%">
+			<MvIF EXPR = "{ g.Payment_PlugNPayAPI:authtype EQ 'authpostauth' }">
+				<input type="radio" name="Payment_PlugNPayAPI:authtype" value="authonly"> Authorize Only (<code>authonly</code>) — settle in PlugnPay Admin<br>
+				<input type="radio" name="Payment_PlugNPayAPI:authtype" value="authpostauth" checked> Sale (<code>authpostauth</code>) — authorize and capture
+			<MvELSE>
+				<input type="radio" name="Payment_PlugNPayAPI:authtype" value="authonly" checked> Authorize Only (<code>authonly</code>) — settle in PlugnPay Admin<br>
+				<input type="radio" name="Payment_PlugNPayAPI:authtype" value="authpostauth"> Sale (<code>authpostauth</code>) — authorize and capture
+			</MvIF>
+		</td></tr>
+
+		<tr><td nowrap valign="top">
+			&nbsp;
+		</td><td width="100%">
+			<MvEVAL EXPR = "{ [ g.Module_Library_Utilities ].DrawCheckbox_With_Label( g.Payment_PlugNPayAPI:use_cvv, 'Payment_PlugNPayAPI:use_cvv', 'Yes', 'Require CVV' ) }">
+		</td></tr>
+
+		<tr><td nowrap valign="top">
+			&nbsp;
+		</td><td width="100%">
+			<MvEVAL EXPR = "{ [ g.Module_Library_Utilities ].DrawCheckbox_With_Label( g.Payment_PlugNPayAPI:dontsndmail, 'Payment_PlugNPayAPI:dontsndmail', 'Yes', 'Prevent gateway customer email (dontsndmail)' ) }">
+		</td></tr>
+		</table>
+	<MvELSE>
+		<MvHIDE FIELDS = "g.Payment_PlugNPayAPI">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvCOMMENT>
+<MvCOMMENT>
+|
+| Remote API helpers
+|
+</MvCOMMENT>
+</MvCOMMENT>
+
+<MvFUNCTION NAME = "PlugNPayAPI_Remote_Authorize" PARAMETERS = "settings var, amount, response var" STANDARDOUTPUTLEVEL = "">
+	<MvCOMMENT>
+	|
+	| Build underscore-named POST fields. MvCALL strips the l. prefix from
+	| field names (same pattern as LSK Google Analytics / reCAPTCHA posts).
+	| convert=underscores tells PlugnPay to treat publisher_name as publisher-name.
+	|
+	</MvCOMMENT>
+	<MvASSIGN NAME = "l.mode"					VALUE = "auth">
+	<MvASSIGN NAME = "l.paymethod"				VALUE = "credit">
+	<MvASSIGN NAME = "l.client"					VALUE = "miva_remoteapi">
+	<MvASSIGN NAME = "l.convert"				VALUE = "underscores">
+	<MvASSIGN NAME = "l.publisher_name"			VALUE = "{ l.settings:publisher_name }">
+	<MvASSIGN NAME = "l.publisher_password"		VALUE = "{ l.settings:publisher_password }">
+	<MvASSIGN NAME = "l.authtype"				VALUE = "{ l.settings:authtype }">
+	<MvASSIGN NAME = "l.card_amount"			VALUE = "{ l.amount }">
+	<MvASSIGN NAME = "l.card_number"			VALUE = "{ g.PlugNPayAPI_CardNumber }">
+	<MvASSIGN NAME = "l.card_exp"				VALUE = "{ padl( g.PlugNPayAPI_CardExp_Month, 2, '0' ) $ '/' $ padl( g.PlugNPayAPI_CardExp_Year MOD 100, 2, '0' ) }">
+	<MvASSIGN NAME = "l.card_name"				VALUE = "{ g.PlugNPayAPI_CardName }">
+	<MvASSIGN NAME = "l.card_address1"			VALUE = "{ g.Basket:bill_addr1 }">
+	<MvASSIGN NAME = "l.card_address2"			VALUE = "{ g.Basket:bill_addr2 }">
+	<MvASSIGN NAME = "l.card_city"				VALUE = "{ g.Basket:bill_city }">
+	<MvASSIGN NAME = "l.card_state"				VALUE = "{ g.Basket:bill_state }">
+	<MvASSIGN NAME = "l.card_zip"				VALUE = "{ g.Basket:bill_zip }">
+	<MvASSIGN NAME = "l.card_country"			VALUE = "{ g.Basket:bill_cntry }">
+	<MvASSIGN NAME = "l.phone"					VALUE = "{ g.Basket:bill_phone }">
+	<MvASSIGN NAME = "l.email"					VALUE = "{ g.Basket:bill_email }">
+	<MvASSIGN NAME = "l.shipinfo"				VALUE = "1">
+	<MvASSIGN NAME = "l.shipname"				VALUE = "{ trim( g.Basket:ship_fname $ ' ' $ g.Basket:ship_lname ) }">
+	<MvASSIGN NAME = "l.address1"				VALUE = "{ g.Basket:ship_addr1 }">
+	<MvASSIGN NAME = "l.address2"				VALUE = "{ g.Basket:ship_addr2 }">
+	<MvASSIGN NAME = "l.city"					VALUE = "{ g.Basket:ship_city }">
+	<MvASSIGN NAME = "l.state"					VALUE = "{ g.Basket:ship_state }">
+	<MvASSIGN NAME = "l.zip"					VALUE = "{ g.Basket:ship_zip }">
+	<MvASSIGN NAME = "l.country"				VALUE = "{ g.Basket:ship_cntry }">
+	<MvASSIGN NAME = "l.ipaddress"				VALUE = "{ s.remote_addr }">
+	<MvASSIGN NAME = "l.acct_code"				VALUE = "{ g.Basket:order_id }">
+	<MvASSIGN NAME = "l.orderID"				VALUE = "{ g.Basket:order_id }">
+	<MvASSIGN NAME = "l.easycart"				VALUE = "1">
+
+	<MvIF EXPR = "{ l.settings:dontsndmail }">
+		<MvASSIGN NAME = "l.dontsndmail" VALUE = "yes">
+	</MvIF>
+
+	<MvIF EXPR = "{ len( trim( l.settings:publisher_email ) ) }">
+		<MvASSIGN NAME = "l.publisher_email"	VALUE = "{ l.settings:publisher_email }">
+		<MvASSIGN NAME = "l.notify_email"		VALUE = "{ l.settings:publisher_email }">
+	</MvIF>
+
+	<MvASSIGN NAME = "l.fields" VALUE = "l.mode,l.paymethod,l.client,l.convert,l.publisher_name,l.publisher_password,l.authtype,l.card_amount,l.card_number,l.card_exp,l.card_name,l.card_address1,l.card_address2,l.card_city,l.card_state,l.card_zip,l.card_country,l.phone,l.email,l.shipinfo,l.shipname,l.address1,l.address2,l.city,l.state,l.zip,l.country,l.ipaddress,l.acct_code,l.orderID,l.easycart">
+
+	<MvIF EXPR = "{ l.settings:use_cvv AND len( g.PlugNPayAPI_CardCVV ) }">
+		<MvASSIGN NAME = "l.card_cvv"	VALUE = "{ g.PlugNPayAPI_CardCVV }">
+		<MvASSIGN NAME = "l.fields"		VALUE = "{ l.fields $ ',l.card_cvv' }">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.settings:dontsndmail }">
+		<MvASSIGN NAME = "l.fields" VALUE = "{ l.fields $ ',l.dontsndmail' }">
+	</MvIF>
+
+	<MvIF EXPR = "{ len( trim( l.settings:publisher_email ) ) }">
+		<MvASSIGN NAME = "l.fields" VALUE = "{ l.fields $ ',l.publisher_email,l.notify_email' }">
+	</MvIF>
+
+	<MvASSIGN NAME = "l.raw" VALUE = "">
+
+	<MIVA MvCALL_Error = "nonfatal, nodisplay">
+	<MvCALL METHOD	= "POST"
+			ACTION	= "https://pay1.plugnpay.com/payment/pnpremote.cgi"
+			FIELDS	= "{ l.fields }"
+			FLAGS	= "force_https, force_verify">
+		<MvASSIGN NAME = "l.raw" VALUE = "{ l.raw $ s.callvalue }">
+	</MvCALL>
+	<MIVA MvCALL_Error = "fatal, display">
+
+	<MvIF EXPR = "{ MvCALL_Error }">
+		<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Library_Utilities ].Error( 'MER-PAY-PNP-00014', MvCALL_Error ) }">
+	</MvIF>
+
+	<MvIF EXPR = "{ len( trim( l.raw ) ) EQ 0 }">
+		<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Library_Utilities ].Error( 'MER-PAY-PNP-00015', 'Empty response from PlugnPay Remote API' ) }">
+	</MvIF>
+
+	<MvEVAL EXPR = "{ PlugNPayAPI_Parse_Response( l.raw, l.response ) }">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PlugNPayAPI_Parse_Response" PARAMETERS = "raw, response var" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.response"	VALUE = "">
+	<MvASSIGN NAME = "l.i"			VALUE = 1>
+	<MvASSIGN NAME = "l.pair"		VALUE = "{ gettoken( l.raw, '&', l.i ) }">
+
+	<MvWHILE EXPR = "{ len( l.pair ) }">
+		<MvASSIGN NAME = "l.key"	VALUE = "{ gettoken( l.pair, '=', 1 ) }">
+		<MvASSIGN NAME = "l.val"	VALUE = "{ gettoken( l.pair, '=', 2 ) }">
+
+		<MvCOMMENT>
+		|
+		| Normalize hyphenated gateway keys to underscore members for easy access.
+		|
+		</MvCOMMENT>
+		<MvASSIGN NAME = "l.key" VALUE = "{ glosub( l.key, '-', '_' ) }">
+
+		<MvIF EXPR = "{ l.key EQ 'FinalStatus' OR l.key EQ 'finalstatus' }">
+			<MvASSIGN NAME = "l.response:FinalStatus" VALUE = "{ l.val }">
+		<MvELSEIF EXPR = "{ l.key EQ 'success' }">
+			<MvASSIGN NAME = "l.response:success" VALUE = "{ l.val }">
+		<MvELSEIF EXPR = "{ l.key EQ 'MErrMsg' OR l.key EQ 'merrmsg' }">
+			<MvASSIGN NAME = "l.response:MErrMsg" VALUE = "{ l.val }">
+		<MvELSEIF EXPR = "{ l.key EQ 'orderID' OR l.key EQ 'orderid' }">
+			<MvASSIGN NAME = "l.response:orderID" VALUE = "{ l.val }">
+		<MvELSEIF EXPR = "{ l.key EQ 'auth_code' OR l.key EQ 'authcode' }">
+			<MvASSIGN NAME = "l.response:auth_code" VALUE = "{ l.val }">
+		<MvELSEIF EXPR = "{ l.key EQ 'avs_code' OR l.key EQ 'avscode' }">
+			<MvASSIGN NAME = "l.response:avs_code" VALUE = "{ l.val }">
+		<MvELSEIF EXPR = "{ l.key EQ 'cvvresp' }">
+			<MvASSIGN NAME = "l.response:cvvresp" VALUE = "{ l.val }">
+		</MvIF>
+
+		<MvASSIGN NAME = "l.i"		VALUE = "{ l.i + 1 }">
+		<MvASSIGN NAME = "l.pair"	VALUE = "{ gettoken( l.raw, '&', l.i ) }">
+	</MvWHILE>
+
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PlugNPayAPI_Response_Approved" PARAMETERS = "response var" STANDARDOUTPUTLEVEL = "">
+	<MvIF EXPR = "{ tolower( l.response:FinalStatus ) EQ 'success' }">
+		<MvFUNCTIONRETURN VALUE = 1>
+	</MvIF>
+
+	<MvIF EXPR = "{ tolower( l.response:success ) EQ 'yes' }">
+		<MvFUNCTIONRETURN VALUE = 1>
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = 0>
+</MvFUNCTION>
+
+<MvCOMMENT>
+<MvCOMMENT>
+|
+| Settings database helpers
+|
+</MvCOMMENT>
+</MvCOMMENT>
+
+<MvFUNCTION NAME = "PlugNPayAPI_Load" PARAMETERS = "settings var" STANDARDOUTPUTLEVEL = "" ERROROUTPUTLEVEL = "">
+	<MvOPENVIEW NAME	= "Merchant"
+			    VIEW	= "PlugNPayAPI"
+				QUERY	= "{ 'SELECT * FROM ' $ g.Store_Table_Prefix $ 'PlugNPayAPI' }">
+	<MvIF EXPR = "{ g.MvOPENVIEW_Error }">
+		<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Library_Utilities ].Error( 'MER-PAY-PNP-00002', g.MvOPENVIEW_Error ) }">
+	</MvIF>
+
+	<MvIF EXPR = "{ PlugNPayAPI.d.EOF }">
+		<MvCLOSEVIEW NAME = "Merchant" VIEW = "PlugNPayAPI">
+		<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Library_DB ].Error_Load_EOF( 'MER-PAY-PNP-00003' ) }">
+	</MvIF>
+
+	<MvASSIGN NAME = "l.settings:publisher_name"		VALUE = "{ PlugNPayAPI.d.publisher_name }">
+	<MvASSIGN NAME = "l.settings:publisher_password"	VALUE = "{ PlugNPayAPI.d.publisher_password }">
+	<MvASSIGN NAME = "l.settings:publisher_email"		VALUE = "{ PlugNPayAPI.d.publisher_email }">
+	<MvASSIGN NAME = "l.settings:authtype"				VALUE = "{ PlugNPayAPI.d.authtype }">
+	<MvASSIGN NAME = "l.settings:use_cvv"				VALUE = "{ PlugNPayAPI.d.use_cvv }">
+	<MvASSIGN NAME = "l.settings:dontsndmail"			VALUE = "{ PlugNPayAPI.d.dontsndmail }">
+
+	<MvIF EXPR = "{ ( l.settings:authtype NE 'authonly' ) AND ( l.settings:authtype NE 'authpostauth' ) }">
+		<MvASSIGN NAME = "l.settings:authtype" VALUE = "authonly">
+	</MvIF>
+
+	<MvCLOSEVIEW NAME = "Merchant" VIEW = "PlugNPayAPI">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PlugNPayAPI_Load_Cached" PARAMETERS = "settings var" STANDARDOUTPUTLEVEL = "">
+	<MvREFERENCE NAME = "l.cache"						VARIABLE = "g.Session:cache:plugnpayapi:load_cached">
+
+	<MvIF EXPR = "{ ISNULL l.cache:result }">
+		<MvASSIGN NAME = "l.cache:result"				VALUE = "{ PlugNPayAPI_Load( l.cache:settings ) }">
+		<MvIF EXPR = "{ NOT l.cache:result }">
+			<MvASSIGN NAME = "l.cache:error_code"		VALUE = "{ g.Error_Code }">
+			<MvASSIGN NAME = "l.cache:error_message"	VALUE = "{ g.Error_Message }">
+			<MvASSIGN NAME = "l.cache:error_db_eof"		VALUE = "{ g.Error_DB_EOF }">
+		</MvIF>
+	</MvIF>
+
+	<MvIF EXPR = "{ NOT l.cache:result }">
+		<MvIF EXPR = "{ l.cache:error_db_eof }">
+			<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Library_DB ].Error_Load_EOF( l.cache:error_code ) }">
+		</MvIF>
+
+		<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Library_Utilities ].Error( l.cache:error_code, l.cache:error_message ) }">
+	</MvIF>
+
+	<MvASSIGN NAME = "l.settings" VALUE = "{ l.cache:settings }">
+	<MvFUNCTIONRETURN VALUE = "{ l.cache:result }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PlugNPayAPI_Insert" PARAMETERS = "settings var" STANDARDOUTPUTLEVEL = "" ERROROUTPUTLEVEL = "">
+	<MvQUERY NAME	= "Merchant"
+			 QUERY	= "{ 'INSERT INTO ' $ g.Store_Table_Prefix $ 'PlugNPayAPI
+						  ( publisher_name, publisher_password, publisher_email, authtype, use_cvv, dontsndmail )
+						  VALUES
+						  ( ?, ?, ?, ?, ?, ? )' }"
+			 FIELDS	= "l.settings:publisher_name, l.settings:publisher_password, l.settings:publisher_email, l.settings:authtype, l.settings:use_cvv, l.settings:dontsndmail">
+	<MvIF EXPR = "{ g.MvQUERY_Error }">
+		<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Library_Utilities ].Error( 'MER-PAY-PNP-00004', g.MvQUERY_Error ) }">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PlugNPayAPI_Update" PARAMETERS = "settings var" STANDARDOUTPUTLEVEL = "" ERROROUTPUTLEVEL = "">
+	<MvQUERY NAME	= "Merchant"
+			 QUERY	= "{ 'UPDATE ' $ g.Store_Table_Prefix $ 'PlugNPayAPI
+						  SET
+							publisher_name		= ?,
+							publisher_password	= ?,
+							publisher_email		= ?,
+							authtype			= ?,
+							use_cvv				= ?,
+							dontsndmail			= ?' }"
+			 FIELDS	= "l.settings:publisher_name, l.settings:publisher_password, l.settings:publisher_email, l.settings:authtype, l.settings:use_cvv, l.settings:dontsndmail">
+	<MvIF EXPR = "{ g.MvQUERY_Error }">
+		<MvFUNCTIONRETURN VALUE = "{ [ g.Module_Library_Utilities ].Error( 'MER-PAY-PNP-00005', g.MvQUERY_Error ) }">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
