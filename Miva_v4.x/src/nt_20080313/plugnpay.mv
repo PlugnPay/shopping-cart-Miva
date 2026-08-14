@@ -1,0 +1,2689 @@
+<MvCOMMENT>
+|
+| Miva Merchant v4.x
+|
+| This file and the source codes contained herein are the property
+| of Miva Corporation.  Use of this file is restricted to the specific
+| terms and conditions in the License Agreement associated with this
+| file.  Distribution of this file or portions of this file for uses
+| not covered by the License Agreement is not allowed without a written
+| agreement signed by an officer of Miva Corporation.
+|
+| Copyright 1998, 1999, 2000 Miva Corporation.  All rights reserved.
+| http://www.miva.com/
+|
+| Plug & Pay Technologies, Inc.
+| $Source: /home/cvs/Merchant/modules/payment/plugnpay.mv,v $
+| $Id: plugnpay.mv,v 1.94.6.3 2000/03/19 12:06:37 burch Exp $
+|
+| Error Code Prefix: MER-ATH-
+| Next Error Code  : 14
+|
+</MvCOMMENT>
+
+<MvCOMMENT>
+	************************************ Module Functions ************************************ .
+</MvCOMMENT>
+
+<MvFUNCTION NAME = "Module_Type" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "PAYMENT">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Code" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "plugnpay">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Name" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "Plug & Pay Technologies Inc. v1.0">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Provider" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "Miva Corporation">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_API_Version" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "4.14">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Version" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "4.2400">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Install" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Uninstall" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Upgrade" PARAMETERS = "version" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Is_Provisionable" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "0">
+</MvFUNCTION>
+<MvFUNCTION NAME = "Module_Domain_Tabs" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "0">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Domain_Content" PARAMETERS = "tab, load_fields" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "0">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Domain_Validate" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Domain_Update" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Pack_Domain" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+
+
+<MvCOMMENT>
+	************************************ PlugNPay Store Functions ************************************ .
+</MvCOMMENT>
+
+<MvFUNCTION NAME = "PlugNPay_Open_Store" STANDARDOUTPUTLEVEL = "" ERROROUTPUTLEVEL = "syntax, expression">
+	<MvASSIGN NAME = "l.ok" VALUE = "1">
+
+	<MvASSIGN NAME = "l.directory" VALUE = "{ g.MerchantPath $ padl( Stores.d.id, 8, '0' ) $ '/plugnpay/' }">
+
+	<MvOPEN NAME = "PlugNPay" DATABASE = "{ l.directory $ 'plugnpay.dbf' }">
+	<MvIF EXPR = "{ MvOPEN_Error }">
+		<MvDO FILE = "{ g.Module_Library_Utilities }" NAME = "l.ok" VALUE = "{ Error( 'MER-ATH-00007', MvOPEN_Error ) }">
+	</MvIF> 
+
+	<MvIF EXPR = "{ l.ok }">
+		<MvOPEN NAME = "PlugNPayMethods" DATABASE = "{ l.directory $ 'authmeth.dbf' }" INDEXES = "{ l.directory $ 'authmeth.mvx' }">
+		<MvIF EXPR = "{ MvOPEN_Error }">
+			<MvDO FILE = "{ g.Module_Library_Utilities }" NAME = "l.ok" VALUE = "{ Error( 'MER-ATH-00008', MvOPEN_Error ) }">
+		<MvELSE>
+			<MvFILTER NAME = "PlugNPayMethods" FILTER = "{ NOT PlugNPayMethods.d.deleted }">
+		</MvIF>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.ok }">
+		<MvOPEN NAME = "PlugNPayOrders" DATABASE = "{ l.directory $ 'aunorder.dbf' }" INDEXES = "{ l.directory $ 'aunorder.mvx' }">
+		<MvIF EXPR = "{ MvOPEN_Error }">
+			<MvDO FILE = "{ g.Module_Library_Utilities }" NAME = "l.ok" VALUE = "{ Error( 'MER-ATH-00009', MvOPEN_Error ) }">
+		<MvELSE>
+			<MvFILTER NAME = "PlugNPayOrders" FILTER = "{ NOT PlugNPayOrders.d.deleted }">
+		</MvIF>
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.ok }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PlugNPay_Close_Store">
+	<MvCLOSE NAME = "PlugNPay">
+	<MvCLOSE NAME = "PlugNPayMethods">
+	<MvCLOSE NAME = "PlugNPayOrders">
+
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PlugNPayMethods_Insert" PARAMETERS = "code, name, type, enabled,CVV">
+	<MvASSIGN NAME = "PlugNPayMethods.d.code" VALUE = "{ l.code }">
+	<MvASSIGN NAME = "PlugNPayMethods.d.name" VALUE = "{ l.name }">
+	<MvASSIGN NAME = "PlugNPayMethods.d.type" VALUE = "{ l.type }">
+	<MvASSIGN NAME = "PlugNPayMethods.d.enabled" VALUE = "{ l.enabled }">
+	<MvASSIGN NAME = "PlugNPayMethods.d.CVV" VALUE = "{ l.CVV}">
+
+	<MvADD NAME = "PlugNPayMethods">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PlugNPayOrders_Insert" PARAMETERS = "order_id, auth_msg, auth_code, avs_code, trans_id, amount, card_num, cc_name,
+															 exp_date, card_cvv,cvvresp, method, bank_name, bank_acct_num, bank_acct_type, bank_aba_code, bank_check_num, mcp_cell_phone, mcp_moc_code, merc_gc_number, merc_gc_name, merc_gc_paytype">
+
+	
+	<MvASSIGN NAME = "PlugNPayOrders.d.order_id"	VALUE = "{ l.order_id }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.r_r_text"	VALUE = "{ decodeattribute(l.auth_msg) }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.auth_code"	VALUE = "{ l.auth_code }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.avs_code"	VALUE = "{ l.avs_code }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.trans_id"	VALUE = "{ l.trans_id }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.amount"		VALUE = "{ l.amount }">
+	
+	
+	<MvIF EXPR = "{PlugNPay.d.storeccno EQ 1}" >
+		<MvASSIGN NAME = "PlugNPayOrders.d.card_num" VALUE = "{l.card_num}"> 	
+	<MvELSE>
+		<MvASSIGN NAME = "PlugNPayOrders.d.card_num" VALUE = "{ substring( l.card_num, 0, 4 ) $ '...' $ substring( l.card_num, len(l.card_num)-4, 4 ) }">
+		
+	</MvIF> 
+	
+	
+	
+	<MvASSIGN NAME = "PlugNPayOrders.d.cc_name"	VALUE = "{ l.cc_name }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.exp_date"	VALUE = "{ l.exp_date }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.card_cvv"	VALUE = "{ l.card_cvv }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.cvvresp"	VALUE = "{ l.cvvresp}">
+	<MvASSIGN NAME = "PlugNPayOrders.d.method"	VALUE = "{ l.method }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.bank_name"	VALUE = "{ l.bank_name }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.acct_num"	VALUE = "{ l.bank_acct_num }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.acct_type"	VALUE = "{ l.bank_acct_type }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.aba_code"	VALUE = "{ l.bank_aba_code }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.check_num"	VALUE = "{ l.bank_check_num}">
+	<MvASSIGN NAME = "PlugNPayOrders.d.time"		VALUE = "{ dyn_time_t }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.cell_phone"	VALUE = "{ l.mcp_cell_phone }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.moc_code"	VALUE = "{ l.mcp_moc_code }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.gc_number" VALUE = "{ substring( l.merc_gc_number, 0, 4 ) $ '...' $ substring( l.merc_gc_number, len(l.merc_gc_number)-4, 4 ) }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.gc_name"	VALUE = "{ l.merc_gc_name }">
+	<MvASSIGN NAME = "PlugNPayOrders.d.gc_paytype"	VALUE = "{ l.merc_gc_paytype }">
+
+	<MvADD NAME = "PlugNPayOrders">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+
+<MvCOMMENT>
+	************************************ Module Store Functions ************************************ .
+</MvCOMMENT>
+
+<MvFUNCTION NAME = "Module_Install_Store" STANDARDOUTPUTLEVEL = "" ERROROUTPUTLEVEL = "syntax, expression">
+	<MvASSIGN NAME = "l.ok" VALUE = "1">
+
+	<MvASSIGN NAME = "l.directory" VALUE = "{ g.MerchantPath $ padl( Stores.d.id, 8, '0' ) $ '/plugnpay/' }">
+	<MvIF EXPR = "{ NOT fexists( l.directory ) }">
+		<MvIF EXPR = "{ NOT fmkdir( l.directory ) }">
+			<MvDO FILE = "{ g.Module_Library_Utilities }" NAME = "l.ok" VALUE = "{ Error( 'MER-ATH-00001', 'Unable to create directory \'' $ l.directory $ '\'' ) }">
+		</MvIF>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.ok }">
+		<MvCREATE	NAME = "PlugNPay"
+					DATABASE = "{ l.directory $ 'plugnpay.dbf' }"
+					FIELDS = "merchant	CHAR( 100 ),
+						    url		CHAR( 254 ),
+						    trankey char(100),
+						    cvvmsg  CHAR( 254 ),
+						    authcap BOOL,
+						    storeccno BOOL,
+						    testmode BOOL">
+		<MvIF EXPR = "{ MvCREATE_Error }">
+			<MvDO FILE = "{ g.Module_Library_Utilities }" NAME = "l.ok" VALUE = "{ Error( 'MER-ATH-00002', MvCREATE_Error ) }">
+		<MvELSE>
+			<MvASSIGN NAME = "PlugNPay.d.merchant"	VALUE = "pnpdemo">
+			<MvASSIGN NAME = "PlugNPay.d.url"		VALUE = "https://pay1.plugnpay.com/payment/pnpremote.cgi">
+			<MvASSIGN NAME = "PlugNPay.d.trankey"	VALUE = "pnpdemo">
+			<MvASSIGN NAME = "PlugNPay.d.cvvmsg"	VALUE = "This is a 3 or 4 digit number displayed on the front or back of your credit card">
+			<MvASSIGN NAME = "PlugNPay.d.authcap"	VALUE = "1">
+			<MvASSIGN NAME = "PlugNPay.d.storeccno"	VALUE = "0">			
+			<MvASSIGN NAME = "PlugNPay.d.testmode"	VALUE = "1">	
+			<MvADD NAME = "PlugNPay">
+		</MvIF>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.ok }">
+		<MvCREATE NAME = "PlugNPayMethods"
+				  DATABASE = "{ l.directory $ 'authmeth.dbf' }"
+				  FIELDS = "code	CHAR( 100 ),
+							name	CHAR( 100 ),
+							type	CHAR( 10 ),
+							enabled BOOL,
+							CVV     BOOL">
+		<MvIF EXPR = "{ MvCREATE_Error }">
+			<MvDO FILE = "{ g.Module_Library_Utilities }" NAME = "l.ok" VALUE = "{ Error( 'MER-ATH-00003', MvCREATE_Error ) }">
+		</MvIF>
+
+		<MvIF EXPR = "{ l.ok }">
+			<MvMAKEINDEX NAME = "PlugNPayMethods"
+						 INDEXFILE = "{ l.directory $ 'authmeth.mvx' }"
+						 EXPRESSION = "{ PlugNPayMethods.d.code }"
+						 FLAGS = "unique, ascending">
+			<MvIF EXPR = "{ MvMAKEINDEX_Error }">
+				<MvDO FILE = "{ g.Module_Library_Utilities }" NAME = "l.ok" VALUE = "{ Error( 'MER-ATH-00004', MvMAKEINDEX_Error ) }">
+			</MvIF>
+		</MvIF>
+
+		<MvIF EXPR = "{ l.ok }">
+			<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPayMethods_Insert( 'Visa', 'Visa', 'CC', 1,0 ) }">
+			<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPayMethods_Insert( 'MasterCard', 'MasterCard', 'CC', 1,0 ) }">
+			<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPayMethods_Insert( 'Discover', 'Discover', 'CC', 1,0 ) }">
+			<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPayMethods_Insert( 'AmerExp', 'American Express', 'CC', 1,0 ) }">
+			<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPayMethods_Insert( 'ACH', 'Electronic Debit', 'ECHECK', 0,0 ) }">
+			<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPayMethods_Insert( 'MocaPay', 'MocaPay', 'MOCPAY', 1,0 ) }">
+			<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPayMethods_Insert( 'Gift Card', 'Gift Card', 'GC', 1,0 ) }">
+		</MvIF>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.ok }">
+		<MvCREATE NAME = "PlugNPayOrders"
+				  DATABASE = "{ l.directory $ 'aunorder.dbf' }"
+				  FIELDS = "order_id				NUMBER,
+							r_r_text				CHAR( 128 ),
+							auth_code				CHAR( 6 ),
+							avs_code				CHAR( 1 ),
+							trans_id				CHAR( 32 ),
+							amount				NUMBER( 10.2 ),
+							card_num				CHAR( 16 ),
+							cc_name				CHAR( 64 ),
+							exp_date				CHAR( 7 ),
+							card_cvv				CHAR(4),
+							cvvresp                CHAR( 1 ),
+							method				CHAR( 6 ),
+							bank_name				CHAR( 32 ),
+							acct_num				CHAR( 17 ),
+							acct_type				CHAR( 8 ),
+							aba_code				CHAR( 9 ),
+							check_num				CHAR( 9 ),
+							cell_phone				CHAR( 16 ),
+							moc_code				CHAR( 16 ),
+							gc_number				CHAR( 16 ),
+							gc_name					CHAR( 16 ),
+							gc_paytype				CHAR( 16 ),
+							time					NUMBER
+							">
+
+		<MvIF EXPR = "{ MvCREATE_Error }">
+			<MvDO FILE = "{ g.Module_Library_Utilities }" NAME = "l.ok" VALUE = "{ Error( 'MER-ATH-00005', MvCREATE_Error ) }">
+		</MvIF>
+
+		<MvIF EXPR = "{ l.ok }">
+			<MvMAKEINDEX NAME = "PlugNPayOrders"
+						 INDEXFILE = "{ l.directory $ 'aunorder.mvx' }"
+						 EXPRESSION = "{ PlugNPayOrders.d.order_id }"
+						 FLAGS = "unique, ascending">
+			<MvIF EXPR = "{ MvMAKEINDEX_Error }">
+				<MvDO FILE = "{ g.Module_Library_Utilities }" NAME = "l.ok" VALUE = "{ Error( 'MER-ATH-00006', MvMAKEINDEX_Error ) }">
+			</MvIF>
+		</MvIF>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.ok }">
+		<MvCLOSE NAME = "PlugNPay">
+		<MvCLOSE NAME = "PlugNPayMethods">
+		<MvCLOSE NAME = "PlugNPayOrders">
+	</MvIF>
+	
+	<MvFUNCTIONRETURN VALUE = "{ l.ok }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Uninstall_Store" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.directory" VALUE = "{ g.MerchantPath $ padl( Stores.d.id, 8, '0' ) $ '/plugnpay/' }">
+
+	<MvASSIGN NAME = "l.ok" VALUE = "{ fdelete( l.directory $ 'plugnpay.dbf' ) }">
+	<MvASSIGN NAME = "l.ok" VALUE = "{ fdelete( l.directory $ 'plugnpay.dbt' ) }">
+	<MvASSIGN NAME = "l.ok" VALUE = "{ fdelete( l.directory $ 'authmeth.dbf' ) }">
+	<MvASSIGN NAME = "l.ok" VALUE = "{ fdelete( l.directory $ 'authmeth.mvx' ) }">
+	<MvASSIGN NAME = "l.ok" VALUE = "{ fdelete( l.directory $ 'aunorder.dbf' ) }">
+	<MvASSIGN NAME = "l.ok" VALUE = "{ fdelete( l.directory $ 'aunorder.mvx' ) }">
+
+	<MvASSIGN NAME = "l.ok" VALUE = "{ fdelete( l.directory ) }">
+
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Upgrade_Store" PARAMETERS = "version">
+	<MvASSIGN NAME = "l.ok" VALUE = "1">
+
+	<MvIF EXPR = "{ l.version LT 4.14 }">
+		<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+
+		<MvASSIGN NAME = "l.directory" VALUE = "{ g.MerchantPath $ padl( Stores.d.id, 8, '0' ) $ '/plugnpay/' }">
+		<MvIF EXPR = "{ l.ok }">
+			<MvCREATE NAME = "NewPlugNPayOrders"
+					  DATABASE = "{ l.directory $ 'neworder.dbf' }"
+					  FIELDS = "order_id				NUMBER,
+								r_r_text				CHAR( 128 ),
+								auth_code				CHAR( 6 ),
+								avs_code				CHAR( 1 ),
+								trans_id				CHAR( 32 ),
+								amount				NUMBER( 10.2 ),
+								card_num				CHAR( 16 ),
+								cc_name				CHAR( 64 ),
+								exp_date				CHAR( 7 ),
+								card_cvv				CHAR(4),
+								cvvresp					CHAR( 1 ),
+								method				CHAR( 6 ),
+								bank_name				CHAR( 32 ),
+								acct_num				CHAR( 17 ),
+								acct_type				CHAR( 8 ),
+								aba_code				CHAR( 9 ),
+								check_num				CHAR( 9 ),
+								cell_phone				CHAR( 16 ),
+								moc_code				CHAR( 16 ),
+								gc_number				CHAR( 16 ),
+								gc_name					CHAR( 16 ),
+								gc_paytype				CHAR( 16 ),
+								time					NUMBER
+								 ">
+
+			<MvIF EXPR = "{ MvCREATE_Error }">
+				<MvDO FILE = "{ g.Module_Library_Utilities }" NAME = "l.ok" VALUE = "{ Error( 'MER-ATH-00010', MvCREATE_Error $ ' during upgrade') }">
+				<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+			</MvIF>
+		</MvIF>
+
+		<MvIF EXPR = "{ l.ok }">
+			<MvGO NAME = "PlugNPayOrders" ROW = "top">
+			<MvWHILE EXPR = "{ NOT PlugNPayOrders.d.EOF }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.order_id" VALUE = "{ PlugNPayOrders.d.order_id }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.r_r_text" VALUE = "{ PlugNPayOrders.d.r_r_text }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.auth_code" VALUE = "{ PlugNPayOrders.d.auth_code }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.avs_code" VALUE = "{ PlugNPayOrders.d.avs_code }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.trans_id" VALUE = "{ PlugNPayOrders.d.trans_id }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.amount" VALUE = "{ PlugNPayOrders.d.amount ROUND 2 }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.card_num" VALUE = "{ PlugNPayOrders.d.card_num }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.cc_name" VALUE = "{ PlugNPayOrders.d.cc_name }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.exp_date" VALUE = "{ PlugNPayOrders.d.exp_date }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.card_cvv" VALUE = "{ PlugNPayOrders.d.card_cvv }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.cvvresp" VALUE = "{ PlugNPayOrders.d.cvvresp}">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.method" VALUE = "{ PlugNPayOrders.d.method }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.bank_name" VALUE = "{ PlugNPayOrders.d.bank_name }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.acct_num" VALUE = "{ PlugNPayOrders.d.acct_num }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.acct_type" VALUE = "{ PlugNPayOrders.d.acct_type }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.aba_code" VALUE = "{ PlugNPayOrders.d.aba_code }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.check_num" VALUE = "{ PlugNPayOrders.d.check_num }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.time" VALUE = "{ PlugNPayOrders.d.time }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.cell_phone" VALUE = "{ PlugNPayOrders.d.cell_phone }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.moc_code" VALUE = "{ PlugNPayOrders.d.moc_code }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.gc_number" VALUE = "{ PlugNPayOrders.d.gc_number }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.gc_name" VALUE = "{ PlugNPayOrders.d.gc_name }">
+				<MvASSIGN NAME = "NewPlugNPayOrders.d.gc_paytype" VALUE = "{ PlugNPayOrders.d.gc_paytype }">				
+				<MvADD NAME = "NewPlugNPayOrders">
+				<MvSKIP NAME = "PlugNPayOrders" ROWS = "1">
+			</MvWHILE>
+			<MvCLOSE NAME = "NewPlugNPayOrders">
+			<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+		</MvIF>
+
+		<MvIF EXPR = "{ l.ok }">
+			<MvIF EXPR = "{ NOT frename( l.directory $ 'neworder.dbf', l.directory $ 'aunorder.dbf' ) }">
+				<MvDO FILE = "{ g.Module_Library_Utilities }"  NAME = "l.ok" VALUE = "{ Error( 'MER-ATH-00012', 'Error renaming new files during upgrade.') }">
+			</MvIF>
+			<MvIF EXPR = "{ NOT fdelete( l.directory $ 'aunorder.mvx' ) }">
+				<MvDO FILE = "{ g.Module_Library_Utilities }"  NAME = "l.ok" VALUE = "{ Error( 'MER-ATH-00013', 'Error deleting aunorder.mvx during upgrade.') }">
+			<MvELSE>
+				<MvOPEN NAME = "PlugNPayOrders" DATABASE = "{ l.directory $ 'aunorder.dbf' }">
+				<MvMAKEINDEX NAME = "PlugNPayOrders"
+							 INDEXFILE = "{ l.directory $ 'aunorder.mvx' }"
+							 EXPRESSION = "{ PlugNPayOrders.d.order_id }"
+							 FLAGS = "unique, ascending">
+				<MvIF EXPR = "{ MvMAKEINDEX_Error }">
+					<MvDO FILE = "{ g.Module_Library_Utilities }" NAME = "l.ok" VALUE = "{ Error( 'MER-ATH-00011', MvMAKEINDEX_Error $ ' during upgrade' ) }">
+				<MvELSE>
+					<MvCLOSE NAME = "PlugNPayOrders">
+				</MvIF>
+			</MvIF>
+		</MvIF>
+	</MvIF>
+	
+	<MvFUNCTIONRETURN VALUE = "{ l.ok }">
+</MvFUNCTION>
+
+
+<MvFUNCTION NAME = "Module_Pack_Store" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+	<MvIF EXPR = "{ l.ok }">
+		<MvPACK NAME = "PlugNPay">
+		<MvPACK NAME = "PlugNPayMethods">
+		<MvPACK NAME = "PlugNPayOrders">
+		<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.ok }">
+</MvFUNCTION>
+
+
+<MvFUNCTION NAME = "Module_Store_Tabs" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "PLUGNPAY:Plug & Pay Technologies Inc. v1.0">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Store_Content" PARAMETERS = "tab, load_fields" STANDARDOUTPUTLEVEL = "text, html, compresswhitespace">
+	<MvASSIGN NAME = "l.ok" VALUE = 1>
+	<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+		<MvIF EXPR = "{ l.ok }">
+			<MvASSIGN NAME = "g.Store_PlugNPay_merchant"	VALUE = "{ PlugNPay.d.merchant }">
+			<MvASSIGN NAME = "g.Store_PlugNPay_URL"			VALUE = "{ PlugNPay.d.url }">
+			<MvASSIGN NAME = "g.Store_PlugNPay_Tran_Key"	VALUE = "{ PlugNPay.d.trankey }">						
+			<MvASSIGN NAME = "g.Store_PlugNPay_Cvv_Message"	VALUE = "{ PlugNPay.d.cvvmsg }">
+			<MvASSIGN NAME = "g.Store_PlugNPay_AuthCapt"	VALUE = "{ PlugNPay.d.authcap}">
+			<MvASSIGN NAME = "g.Store_PlugNPay_FullCC"		VALUE = "{ PlugNPay.d.storeccno }">
+			<MvASSIGN NAME = "g.Store_PlugNPay_Test_Mode"	VALUE = "{ PlugNPay.d.testmode }">
+
+			<MvGO NAME = "PlugNPayMethods" ROW = "top">
+			
+			<MvWHILE EXPR = "{ NOT PlugNPayMethods.d.EOF }">
+				<MvASSIGN NAME = "l.method" VALUE = "{ l.method + 1 }">
+				<MvASSIGN NAME = "g.Store_PlugNPay_Method_Code" INDEX = "{l.method}" VALUE = "{ PlugNPayMethods.d.code }">
+				<MvASSIGN NAME = "g.Store_PlugNPay_Method_Name" INDEX = "{l.method}" VALUE = "{ PlugNPayMethods.d.name }">
+				<MvASSIGN NAME = "g.Store_PlugNPay_Method_Enabled" INDEX = "{l.method}" VALUE = "{ PlugNPayMethods.d.enabled }">
+				<MvASSIGN NAME = "g.Store_PlugNPay_Method_Type" INDEX = "{l.method}" VALUE = "{ PlugNPayMethods.d.type}">
+				<MvASSIGN NAME = "g.Store_PlugNPay_Method_CVV" INDEX = "{l.method}" VALUE = "{ PlugNPayMethods.d.CVV }">
+				<MvSKIP NAME = "PlugNPayMethods" ROWS = 1>
+			</MvWHILE>
+
+			<MvASSIGN NAME = "g.Store_PlugNPay_Method_Count" VALUE = "{ l.method }">
+
+			<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+		</MvIF>
+	<MvIF EXPR = "{ l.ok }">
+		
+		<MvIF EXPR = "{ g.Tab EQ 'PLUGNPAY' }">
+			<TABLE BORDER = 0 CELLPADDING = 2 CELLSPACING = 0>
+			<TR><TD NOWRAP>
+				<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+				<B>Login ID:</B>
+				</FONT>
+			</TD><TD WIDTH = "100%">
+				<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+				<INPUT TYPE = "text" NAME = "Store_PlugNPay_merchant" SIZE = 40 VALUE = "{ encodeentities( g.Store_PlugNPay_merchant) }">
+				</FONT>
+			</TD></TR>
+			<TR><TD NOWRAP>
+				<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+				<B>Transaction Key:</B>
+				</FONT>
+			</TD><TD WIDTH = "100%">
+				<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+				<INPUT TYPE = "text" NAME = "Store_PlugNPay_Tran_Key" SIZE = 40 VALUE = "{ encodeentities( g.Store_PlugNPay_Tran_Key) }">
+				</FONT>
+			</TD></TR>
+			<TR><TD NOWRAP>
+				<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+				<B>PlugNPay.Com URL:</B>
+				</FONT>
+			</TD><TD WIDTH = "100%">
+				<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+				<INPUT TYPE = "text" NAME = "Store_PlugNPay_URL" SIZE = 40 VALUE = "{ encodeentities( g.Store_PlugNPay_URL) }">
+				</FONT>
+			</TD></TR>
+			
+			<TR>
+				<TD NOWRAP valign="top">
+				<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+				CVV Message:
+				</FONT>
+				</TD>
+				
+				<TD WIDTH = "100%">
+					<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+					<TEXTAREA id="Store_PlugNPay_Cvv_Message" name="Store_PlugNPay_Cvv_Message" rows="10" cols="58" WRAP = "off"><MvEVAL EXPR = "{ encodeentities(g.Store_PlugNPay_Cvv_Message) }"> 
+					</TEXTAREA>
+				</FONT>
+				</TD>
+			</TR>
+			<TR><TD VALIGN = "top" NOWRAP>
+			<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+			<B>Charge Method:</B>	</FONT>
+			</TD><TD WIDTH = "100%">
+			<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+			<MvIF EXPR = "{g.Store_PlugNPay_AuthCapt}">
+				<INPUT TYPE = "radio" NAME = "Store_PlugNPay_AuthCapt" VALUE = "1" CHECKED>Online (Automatic Capture)<BR>
+				<INPUT TYPE = "radio" NAME = "Store_PlugNPay_AuthCapt" VALUE = "0">Offline (Authorize Only, Capture Later)
+			<MvELSE>
+				<INPUT TYPE = "radio" NAME = "Store_PlugNPay_AuthCapt" VALUE = "1">Online (Automatic Capture)<BR>
+				<INPUT TYPE = "radio" NAME = "Store_PlugNPay_AuthCapt" VALUE = "0" CHECKED>Offline (Authorize Only, Capture Later)
+			</MvIF>
+
+			</FONT>
+			</TD></TR>
+			<MvCOMMENT>			
+			<TR><TD VALIGN = "top" NOWRAP>
+			<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+			&nbsp;
+			</TD><TD WIDTH = "100%">
+			<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+				<INPUT TYPE = "checkbox" NAME = "Store_PlugNPay_SecureSource" VALUE = "1" ONCLICK="AuthNetConfirm();">Use Secure Source Validation<BR>
+			</FONT>
+			</TD></TR>
+			</MvCOMMENT>
+
+			<TR><TD VALIGN = "top" NOWRAP>
+			<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+			&nbsp;
+			</TD><TD WIDTH = "100%">
+			<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+
+			<MvIF EXPR = "{g.Store_PlugNPay_FullCC}">
+				<INPUT TYPE = "checkbox" NAME = "Store_PlugNPay_FullCC" VALUE = "1" CHECKED>Store Entire CC Number<BR>	
+			<MvELSE>
+				<INPUT TYPE = "checkbox" NAME = "Store_PlugNPay_FullCC" VALUE = "1">Store Entire CC Number<BR>
+			</MvIF>
+			</FONT>
+			</TD></TR>
+			<TR><TD VALIGN = "top" NOWRAP>
+			<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+			&nbsp;
+			</TD><TD WIDTH = "100%">
+			<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+
+			<MvIF EXPR = "{g.Store_PlugNPay_Test_Mode}">
+				<INPUT TYPE = "checkbox" NAME = "Store_PlugNPay_Test_Mode" VALUE = "1" CHECKED>Test Mode<BR>
+			<MvELSE>
+				<INPUT TYPE = "checkbox" NAME = "Store_PlugNPay_Test_Mode" VALUE = "1">Test Mode<BR>
+			</MvIF>
+
+			</FONT>
+			</TD></TR>
+			<TR><TD VALIGN = "top" NOWRAP>
+				<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+				Available Payment Methods:
+				</FONT>
+			</TD><TD WIDTH = "100%">
+				<TABLE BORDER = 0>
+					<MvASSIGN NAME = "l.col" VALUE = 1>
+					<TR>
+					<MvASSIGN NAME = "l.method" VALUE = 1>
+					
+					<MvWHILE EXPR = "{ l.method LE g.Store_PlugNPay_Method_Count }">
+						
+						<MvASSIGN NAME = "l.method_code" VALUE = "{ g.Store_PlugNPay_Method_Code[l.method] }">
+						<MvASSIGN NAME = "l.method_name" VALUE = "{ g.Store_PlugNPay_Method_Name[l.method]}">
+						<MvASSIGN NAME = "l.method_type" VALUE = "{ g.Store_PlugNPay_Method_Type[l.method]}">
+						<MvASSIGN NAME = "l.method_enabled" VALUE = "{ g.Store_PlugNPay_Method_Enabled[l.method]}">
+						<MvASSIGN NAME = "l.method_cvv" VALUE = "{ g.Store_PlugNPay_Method_CVV[l.method]}">
+
+						<MvIF EXPR = "{ l.col GT 2 }">
+							<MvASSIGN NAME = "l.col" VALUE = 1>
+							</TR><TR>
+						</MvIF>
+
+						<TR>
+						<TD ALIGN = "left" VALIGN = "middle" NOWRAP>
+							<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+							<INPUT TYPE = "hidden" NAME = "{ 'Store_PlugNPay_Method_Code[' $ l.method $ ']' }" VALUE = "{ encodeentities( l.method_code) }">
+							<INPUT TYPE = "hidden" NAME = "{ 'Store_PlugNPay_Method_Name[' $ l.method $ ']' }" VALUE = "{ encodeentities( l.method_name) }">
+							<INPUT TYPE = "hidden" NAME = "{ 'Store_PlugNPay_Method_Type[' $ l.method $ ']' }" VALUE = "{ encodeentities( l.method_type) }">
+							<MvIF EXPR = "{l.method_enabled}">
+								<INPUT TYPE = "checkbox" NAME = "{ 'Store_PlugNPay_Method_Enabled[' $ l.method $ ']' }" VALUE = "Yes" CHECKED>
+							<MvELSE>
+								<INPUT TYPE = "checkbox" NAME = "{ 'Store_PlugNPay_Method_Enabled[' $ l.method $ ']' }" VALUE = "Yes">
+							</MvIF>
+							<MvEVAL EXPR = "{ l.method_name }">
+							</FONT>
+						</TD>
+						<TD>
+							<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+							<MvIF EXPR = "{ l.method_type EQ 'CC' }">
+								<MvIF EXPR = "{l.method_cvv}">
+									<INPUT TYPE = "checkbox" NAME = "{ 'Store_PlugNPay_Method_CVV[' $ l.method $ ']' }" VALUE = "Yes" CHECKED>Display CVV2 Field 
+								<MvELSE>
+									<INPUT TYPE = "checkbox" NAME = "{ 'Store_PlugNPay_Method_CVV[' $ l.method $ ']' }" VALUE = "Yes" >Display CVV2 Field 
+								</MvIF>
+							<MvELSE>
+								<INPUT TYPE = "hidden" NAME = "{ 'Store_PlugNPay_Method_CVV[' $ l.method $ ']' }" VALUE = "0" >
+							</MvIF>
+							
+							</Font>
+						</TD>
+						</TR>
+						
+						<MvASSIGN NAME = "l.col" VALUE = "{ l.col + 1 }">
+						<MvASSIGN NAME = "l.method" VALUE = "{ l.method + 1 }">
+					</MvWHILE>
+
+					<MvIF EXPR = "{ l.col LE 2 }">
+						</TR>
+					</MvIF>
+				</TABLE>
+
+				<INPUT TYPE = "hidden" NAME = "Store_PlugNPay_Method_Count" VALUE = "{ encodeentities( g.Store_PlugNPay_Method_Count) }">
+			</TD></TR>
+			</TABLE>
+		<MvELSE>
+		
+			<MvCOMMENT>
+			<TEXTAREA id="Store_PlugNPay_Cvv_Message" name="Store_PlugNPay_Cvv_Message" rows="10" cols="58" WRAP = "off" style="display:none"><MvEVAL EXPR = "{ encodeentities(g.Store_PlugNPay_Cvv_Message) }"> 
+			</TEXTAREA>
+			</MvCOMMENT>
+			
+			<INPUT TYPE = "hidden" NAME = "Store_PlugNPay_merchant" VALUE = "{ encodeentities( g.Store_PlugNPay_merchant) }">
+			<INPUT TYPE = "hidden" NAME = "Store_PlugNPay_URL" VALUE = "{ encodeentities( g.Store_PlugNPay_URL) }">
+			<INPUT TYPE = "hidden" NAME = "Store_PlugNPay_Tran_Key" VALUE = "{ encodeentities( g.Store_PlugNPay_Tran_Key) }">
+			<INPUT TYPE = "hidden" NAME = "Store_PlugNPay_Cvv_Message" VALUE = "{ encodeentities( g.Store_PlugNPay_Cvv_Message) }">
+			<INPUT TYPE = "hidden" NAME = "Store_PlugNPay_AuthCapt" VALUE = "{ encodeentities( g.Store_PlugNPay_AuthCapt) }">
+			<INPUT TYPE = "hidden" NAME = "Store_PlugNPay_SecureSource" VALUE = "1">
+			<INPUT TYPE = "hidden" NAME = "Store_PlugNPay_FullCC" VALUE = "{ encodeentities( g.Store_PlugNPay_FullCC) }">
+			<INPUT TYPE = "hidden" NAME = "Store_PlugNPay_Test_Mode" VALUE = "{ encodeentities( g.Store_PlugNPay_Test_Mode) }">
+			
+		
+					
+			<MvASSIGN NAME = "l.method" VALUE = 1>
+			<MvWHILE EXPR = "{ l.method LE g.Store_PlugNPay_Method_Count }">
+				<MvASSIGN NAME = "l.method_code" VALUE = "{ g.Store_PlugNPay_Method_Code[l.method] }">
+				<MvASSIGN NAME = "l.method_name" VALUE = "{ g.Store_PlugNPay_Method_Name[l.method]}">
+				<MvASSIGN NAME = "l.method_type" VALUE = "{ g.Store_PlugNPay_Method_Type[l.method]}">
+				<MvASSIGN NAME = "l.method_enabled" VALUE = "{ g.Store_PlugNPay_Method_Enabled[l.method]}">
+				<MvASSIGN NAME = "l.method_cvv" VALUE = "{ g.Store_PlugNPay_Method_CVV[l.method]}">
+				<INPUT TYPE = "hidden" NAME = "{ 'Store_PlugNPay_Method_Code[' $ l.method $ ']' }" VALUE = "{ encodeentities( l.method_code) }">
+				<INPUT TYPE = "hidden" NAME = "{ 'Store_PlugNPay_Method_Name[' $ l.method $ ']' }" VALUE = "{ encodeentities( l.method_name) }">
+				<INPUT TYPE = "hidden" NAME = "{ 'Store_PlugNPay_Method_Enabled[' $ l.method $ ']' }"  VALUE = "{ encodeentities( l.method_enabled) }">
+				<INPUT TYPE = "hidden" NAME = "{ 'Store_PlugNPay_Method_CVV[' $ l.method $ ']' }"  VALUE = "{ encodeentities( l.method_cvv) }">
+				<MvASSIGN NAME = "l.method" VALUE = "{ l.method + 1 }">
+			</MvWHILE>
+
+			<INPUT TYPE = "hidden" NAME = "Store_PlugNPay_Method_Count" VALUE = "{ encodeentities( g.Store_PlugNPay_Method_Count) }">
+
+		</MvIF>
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Store_Validate" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "g.Store_PlugNPay_merchant" VALUE = "{ ltrim( rtrim( g.Store_PlugNPay_merchant ) ) }">
+	<MvASSIGN NAME = "g.Store_PlugNPay_URL" VALUE = "{ ltrim( rtrim( g.Store_PlugNPay_URL ) ) }">
+	<MvASSIGN NAME = "g.Store_PlugNPay_Tran_Key" VALUE = "{ ltrim( rtrim( g.Store_PlugNPay_Tran_Key ) ) }">
+
+	<MvIF EXPR = "{ len( g.Store_PlugNPay_merchant ) EQ 0 }">
+		<MvDO FILE = "{ g.Module_Admin }" NAME = "l.valid" VALUE = "{ FieldError( 'PLUGNPAY', 'Store_PlugNPay_merchant', 'Please specify a username' ) }">
+		<MvFUNCTIONRETURN VALUE = 0>
+	</MvIF>
+	<MvIF EXPR = "{ len( g.Store_PlugNPay_Tran_Key) EQ 0 }">
+		<MvDO FILE = "{ g.Module_Admin }" NAME = "l.valid" VALUE = "{ FieldError( 'PLUGNPAY', 'Store_PlugNPay_Tran_Key', 'Please specify a transaction key' ) }">
+		<MvFUNCTIONRETURN VALUE = 0>
+	</MvIF>
+
+	<MvIF EXPR = "{ len( g.Store_PlugNPay_URL ) EQ 0 }">
+		<MvDO FILE = "{ g.Module_Admin }" NAME = "l.valid" VALUE = "{ FieldError( 'PLUGNPAY', 'Store_PlugNPay_URL', 'Please specify a url' ) }">
+		<MvFUNCTIONRETURN VALUE = 0>
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Store_Update" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+	
+	<MvIF EXPR = "{ l.ok }">
+		<MvASSIGN NAME = "PlugNPay.d.merchant" VALUE = "{ g.Store_PlugNPay_merchant }">
+		<MvASSIGN NAME = "PlugNPay.d.trankey" VALUE = "{ g.Store_PlugNPay_Tran_Key }">
+		<MvASSIGN NAME = "PlugNPay.d.url" VALUE = "{ g.Store_PlugNPay_URL }">
+		<MvASSIGN NAME = "PlugNPay.d.cvvmsg" VALUE = "{ g.Store_PlugNPay_CVV_Message}">
+		<MvASSIGN NAME = "PlugNPay.d.authcap" VALUE = "{ g.Store_PlugNPay_AuthCapt }">
+		<MvASSIGN NAME = "PlugNPay.d.storeccno" VALUE = "{ g.Store_PlugNPay_FullCC }">
+		<MvASSIGN NAME = "PlugNPay.d.testmode" VALUE = "{ g.Store_PlugNPay_Test_Mode }">
+	
+		<MvUPDATE NAME = "PlugNPay">
+
+		<MvASSIGN NAME = "l.method" VALUE = 1>
+		<MvWHILE EXPR = "{ l.method LE g.Store_PlugNPay_Method_Count }">
+			<MvFIND NAME = "PlugNPayMethods" VALUE = "{ g.Store_PlugNPay_Method_Code[l.method] }" EXACT>
+			<MvIF EXPR = "{ NOT PlugNPayMethods.d.EOF }">
+				<MvASSIGN NAME = "PlugNPayMethods.d.enabled" VALUE = "{ g.Store_PlugNPay_Method_Enabled[l.method] }">
+				<MvASSIGN NAME = "PlugNPayMethods.d.cvv" VALUE = "{ g.Store_PlugNPay_Method_CVV[l.method] }">
+				<MvUPDATE NAME = "PlugNPayMethods">
+			</MvIF>
+
+			<MvASSIGN NAME = "l.method" VALUE = "{ l.method + 1 }">
+		</MvWHILE>
+
+		<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.ok }">
+</MvFUNCTION>
+
+
+
+<MvCOMMENT>
+	************************************ Module Wizard Functions ************************************ .
+</MvCOMMENT>
+
+<MvFUNCTION NAME = "Module_Is_Wizardable" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+<MvFUNCTION NAME = "Module_Wizard_Predefined_Available" PARAMETERS = "version, description, delimiter, data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 0>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Wizard_Predefined_Validate" PARAMETERS = "version, description, delimiter, data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Wizard_Predefined_Action" PARAMETERS = "version, description, delimiter, data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Wizard_Validate_Step" PARAMETERS = "step" STANDARDOUTPUTLEVEL = "">
+	
+	
+	<MvIF EXPR = "{ l.step EQ 1 }">
+		<MvASSIGN NAME = "g.Wizard_PlugNPay_merchant" VALUE = "{ ltrim( rtrim( g.Wizard_PlugNPay_merchant ) ) }">
+		<MvASSIGN NAME = "g.Wizard_PlugNPay_Tran_Key" VALUE = "{ ltrim( rtrim( g.Wizard_PlugNPay_Tran_Key) ) }">
+		<MvIF EXPR = "{ len( g.Wizard_PlugNPay_merchant ) EQ 0 }">
+			<MvDO FILE = "{ g.Module_Admin }" NAME = "l.valid" VALUE = "{ Wizard_Module_FieldError( l.step, 'Wizard_PlugNPay_merchant', 'Please specify a username' ) }">
+			<MvFUNCTIONRETURN VALUE = "0">
+		</MvIF>
+		
+		<MvIF EXPR = "{ len( g.Wizard_PlugNPay_Tran_Key ) EQ 0 }">
+			<MvDO FILE = "{ g.Module_Admin }" NAME = "l.valid" VALUE = "{ Wizard_Module_FieldError( l.step, 'Wizard_PlugNPay_Tran_Key', 'Please specify a transaction key' ) }">
+			<MvFUNCTIONRETURN VALUE = "0">
+		</MvIF>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.step EQ 3 }">
+		<MvASSIGN NAME = "l.found_enabled" VALUE = 0>
+		<MvASSIGN NAME = "l.card" VALUE = 1>
+		<MvWHILE EXPR = "{ l.card LE g.Wizard_PlugNPay_Method_Count }">
+			<MvASSIGN NAME = "l.method_enabled" VALUE = "{ g.Wizard_PlugNPay_Method_Enabled[l.card] }">
+			<MvIF EXPR = "{ l.method_enabled}">
+				<MvASSIGN NAME = "l.found_enabled" VALUE = 1>
+				<MvWHILESTOP>
+			</MvIF>
+			<MvASSIGN NAME = "l.card" VALUE = "{ l.card + 1 }">
+		</MvWHILE>
+
+		<MvIF EXPR = "{ NOT l.found_enabled }">
+			<MvDO FILE = "{ g.Module_Admin }" NAME = "l.valid" VALUE = "{ Wizard_Module_FieldError( l.step, '', 'Please select atleast one payment method' ) }">
+			<MvFUNCTIONRETURN VALUE = 0>
+		</MvIF>
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Wizard_Validate" STANDARDOUTPUTLEVEL = "">
+	
+	
+	<MvASSIGN NAME = "g.Wizard_PlugNPay_merchant" VALUE = "{ ltrim( rtrim( g.Wizard_PlugNPay_merchant ) ) }">
+	<MvASSIGN NAME = "g.Wizard_PlugNPay_Tran_Key" VALUE = "{ ltrim( rtrim( g.Wizard_PlugNPay_Tran_Key) ) }">
+	
+	<MvIF EXPR = "{ len( g.Wizard_PlugNPay_merchant ) EQ 0 }">
+		<MvDO FILE = "{ g.Module_Admin }" NAME = "l.valid" VALUE = "{ Wizard_Module_FieldError( 1, 'Wizard_PlugNPay_merchant', 'Please specify a username' ) }">
+		<MvFUNCTIONRETURN VALUE = "0">
+	</MvIF>
+
+	<MvIF EXPR = "{ len( g.Wizard_PlugNPay_Tran_Key ) EQ 0 }">
+		<MvDO FILE = "{ g.Module_Admin }" NAME = "l.valid" VALUE = "{ Wizard_Module_FieldError( 1, 'Wizard_PlugNPay_Tran_Key', 'Please specify a transaction key' ) }">
+		<MvFUNCTIONRETURN VALUE = "0">
+	</MvIF>
+		
+	<MvASSIGN NAME = "l.found_enabled" VALUE = 0>
+	<MvASSIGN NAME = "l.card" VALUE = 1>
+	<MvWHILE EXPR = "{ l.card LE g.Wizard_PlugNPay_Method_Count }">
+		<MvASSIGN NAME = "l.method_enabled" VALUE = "{ g.Wizard_PlugNPay_Method_Enabled[l.card] }">
+		<MvIF EXPR = "{ l.method_enabled}">
+			<MvASSIGN NAME = "l.found_enabled" VALUE = 1>
+			<MvWHILESTOP>
+		</MvIF>
+		<MvASSIGN NAME = "l.card" VALUE = "{ l.card + 1 }">
+	</MvWHILE>
+		
+	
+	<MvIF EXPR = "{ NOT l.found_enabled }">
+		<MvDO FILE = "{ g.Module_Admin }" NAME = "l.valid" VALUE = "{ Wizard_Module_FieldError( 3, '', 'Please select atleast one payment method' ) }">
+		<MvFUNCTIONRETURN VALUE = 0>
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+
+
+<MvFUNCTION NAME = "Module_Wizard_Action" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+	
+	
+	
+	<MvIF EXPR = "{ l.ok }">
+		<MvASSIGN NAME = "PlugNPay.d.merchant" VALUE = "{ g.Wizard_PlugNPay_merchant }">
+		<MvASSIGN NAME = "PlugNPay.d.trankey" VALUE = "{ g.Wizard_PlugNPay_Tran_Key }">
+		<MvASSIGN NAME = "PlugNPay.d.cvvmsg" VALUE = "{ g.Wizard_PlugNPay_CVV_Message}">
+		<MvASSIGN NAME = "PlugNPay.d.authcap" VALUE = "{ g.Wizard_PlugNPay_AuthCapt }">
+		<MvUPDATE NAME = "PlugNPay">
+
+		<MvASSIGN NAME = "l.method" VALUE = 1>
+		<MvWHILE EXPR = "{ l.method LE g.Wizard_PlugNPay_Method_Count }">
+			<MvFIND NAME = "PlugNPayMethods" VALUE = "{ g.Wizard_PlugNPay_Method_Code[l.method] }" EXACT>
+			<MvIF EXPR = "{ NOT PlugNPayMethods.d.EOF }">
+				<MvASSIGN NAME = "PlugNPayMethods.d.enabled" VALUE = "{ g.Wizard_PlugNPay_Method_Enabled[l.method] }">
+				<MvASSIGN NAME = "PlugNPayMethods.d.cvv" VALUE = "{ g.Wizard_PlugNPay_Method_CVV[l.method] }">
+				<MvUPDATE NAME = "PlugNPayMethods">
+			</MvIF>
+
+			<MvASSIGN NAME = "l.method" VALUE = "{ l.method + 1 }">
+		</MvWHILE>
+
+		<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.ok }">
+	
+
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Wizard_Content" PARAMETERS = "step, load_fields" STANDARDOUTPUTLEVEL = "text, html, compresswhitespace">
+	<MvIF EXPR = "{ l.load_fields }">
+		<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+		<MvIF EXPR = "{ l.ok }">
+
+			<MvASSIGN NAME = "Wizard_PlugNPay_merchant" VALUE = "{ PlugNPay.d.merchant }">
+			<MvASSIGN NAME = "Wizard_PlugNPay_Tran_Key"			VALUE = "{ PlugNPay.d.trankey }">
+			<MvASSIGN NAME = "Wizard_PlugNPay_Cvv_Message"		VALUE = "{ PlugNPay.d.cvvmsg }">
+			<MvASSIGN NAME = "Wizard_PlugNPay_AuthCapt"		VALUE = "{ PlugNPay.d.authcap}">
+			
+			<MvASSIGN NAME = "l.method" VALUE = "0">
+			<MvGO NAME = "PlugNPayMethods" ROW = "top">
+			<MvWHILE EXPR = "{ NOT PlugNPayMethods.d.EOF }">
+				<MvASSIGN NAME = "l.method" VALUE = "{ l.method + 1 }">
+				<MvASSIGN NAME = "Wizard_PlugNPay_Method_Code" INDEX = "{l.method}" VALUE = "{ PlugNPayMethods.d.code }">
+				<MvASSIGN NAME = "Wizard_PlugNPay_Method_Name" INDEX = "{l.method}" VALUE = "{ PlugNPayMethods.d.name }">
+				<MvASSIGN NAME = "Wizard_PlugNPay_Method_Enabled" INDEX = "{l.method}" VALUE = "{ PlugNPayMethods.d.enabled }">
+				<MvASSIGN NAME = "Wizard_PlugNPay_Method_Type" INDEX = "{l.method}" VALUE = "{ PlugNPayMethods.d.type}">
+				<MvASSIGN NAME = "Wizard_PlugNPay_Method_CVV" INDEX = "{l.method}" VALUE = "{ PlugNPayMethods.d.CVV }">
+				
+				<MvSKIP NAME = "PlugNPayMethods" ROWS = "1">
+			</MvWHILE>
+
+			<MvASSIGN NAME = "Wizard_PlugNPay_Method_Count" VALUE = "{ l.method }">
+			<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+		</MvIF>
+	</MvIF>
+	
+	<MvIF EXPR = "{ l.step EQ 1 }">
+		<TABLE BORDER = 0 CELLPADDING = 2 CELLSPACING = 0 WIDTH = "100%">
+		<TR><TD VALIGN = "top" ALIGN = "left" COLSPAN = 2>
+			<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+			<P>
+				PlugNPay Merchants are identified by a <I>Login ID</I>, and validated by a Transaction Key. This information is provided to you when your PlugNPay account is created. 
+			</P>
+
+			<P>
+			Please enter your account information.
+			</P>
+			</FONT>
+		</TD></TR>
+
+		<TR><TD COLSPAN = 2>
+			&nbsp;
+		</TD></TR>
+
+		<TR><TD NOWRAP>
+			<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+			<B>Login ID:</B>
+			</FONT>
+		</TD><TD WIDTH = "100%">
+			<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+			<INPUT TYPE = "text" SIZE = 40 NAME = "Wizard_PlugNPay_merchant" VALUE = "{ encodeentities( g.Wizard_PlugNPay_merchant) }">
+			
+			</FONT>
+		</TD></TR>
+		<TR><TD NOWRAP>
+				<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+				<B>Transaction Key:</B>
+				</FONT>
+			</TD><TD WIDTH = "100%">
+				<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+				<INPUT TYPE = "text" NAME = "Wizard_PlugNPay_Tran_Key" SIZE = 40 VALUE = "{ encodeentities( g.Wizard_PlugNPay_Tran_Key) }">
+				</FONT>
+			</TD></TR>
+		
+			<TR><TD COLSPAN = 2>
+				&nbsp;
+			</TD></TR>
+
+			<TR><TD VALIGN = "bottom" ALIGN = "left">
+				<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+				<INPUT TYPE = "button" VALUE = "Previous" ONCLICK = "Module_Wizard_Previous();">
+				</FONT>
+			</TD><TD VALIGN = "bottom" ALIGN = "right">
+				<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+				<INPUT TYPE = "button" VALUE = "Next" ONCLICK = "Module_Wizard_Next();">
+				</FONT>
+			</TD></TR>
+		</TABLE>
+	<MvELSE>
+		<INPUT TYPE = "hidden" NAME = "Wizard_PlugNPay_merchant" VALUE = "{ encodeentities( g.Wizard_PlugNPay_merchant) }">
+		<INPUT TYPE = "hidden" NAME = "Wizard_PlugNPay_Tran_Key" VALUE = "{ encodeentities( g.Wizard_PlugNPay_Tran_Key) }">
+	</MvIF>
+	
+	<MvIF EXPR = "{ l.step EQ 2 }">
+		<TABLE BORDER = 0 CELLPADDING = 2 CELLSPACING = 0 WIDTH = "100%">
+		<TR><TD VALIGN = "top" ALIGN = "left" COLSPAN = 2>
+			<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+			<P>
+				Your PlugNPay account can be configured for two different
+				types of authorization. An <I>online</I> account actually bills
+				the customers credit card when an order is placed. An <I>offline</I>
+				account only performs the credit card authorization at the time of
+				the order; billing is done when the order ships.
+			</P>
+			<P>
+				Miva Merchant must be configured for the same type of Authorization
+				as your PlugNPay account.
+			</P>
+			</FONT>
+		</TD></TR>
+
+		<TR><TD COLSPAN = 2>
+		&nbsp;
+		</TD></TR>
+		
+		
+		<TR><TD VALIGN = "top" NOWRAP>
+		<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+		<B>Charge Method:</B>	</FONT>
+		</TD><TD WIDTH = "100%">
+		<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+		
+			<MvIF EXPR = "{g.Wizard_PlugNPay_AuthCapt EQ 1}">
+				<INPUT TYPE = "radio" NAME = "Wizard_PlugNPay_AuthCapt" VALUE = "1" CHECKED>Online (Automatic Capture)<BR>
+				<INPUT TYPE = "radio" NAME = "Wizard_PlugNPay_AuthCapt" VALUE = "0">Offline (Authorize Only, Capture Later)
+			<MvELSE>
+				<INPUT TYPE = "radio" NAME = "Wizard_PlugNPay_AuthCapt" VALUE = "1">Online (Automatic Capture)<BR>
+				<INPUT TYPE = "radio" NAME = "Wizard_PlugNPay_AuthCapt" VALUE = "0" CHECKED>Offline (Authorize Only, Capture Later)
+			</MvIF>
+			
+		</FONT>
+		</TD></TR>
+		<TR><TD COLSPAN = 2>
+		&nbsp;
+		</TD></TR>
+
+			<TR><TD VALIGN = "bottom" ALIGN = "left">
+				<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+				<INPUT TYPE = "button" VALUE = "Previous" ONCLICK = "Module_Wizard_Previous();">
+				</FONT>
+			</TD><TD VALIGN = "bottom" ALIGN = "right">
+				<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+				<INPUT TYPE = "button" VALUE = "Next" ONCLICK = "Module_Wizard_Next();">
+				</FONT>
+			</TD></TR>
+		</TABLE>
+	<MvELSE>
+		<INPUT TYPE = "hidden" NAME = "Wizard_PlugNPay_AuthCapt" VALUE = "{ encodeentities( g.Wizard_PlugNPay_AuthCapt) }">
+		
+	</MvIF>
+	
+	<MvIF EXPR = "{ l.step EQ 3 }">
+		<TABLE BORDER = 0 CELLPADDING = 2 CELLSPACING = 0 WIDTH = "100%">
+		<TR><TD VALIGN = "top" COLSPAN = 2>
+		<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+
+		<P>
+		Below is a list of credit cards available to you by PlugNPay. Please select the credit cards you wish to accept. You also have the option to prompt customers to enter their CVV2 number along with their
+		credit card information. The CVV2 number is the last 3 digit number printed on the back of
+		some credit cards in the signature area. If this number is available to customers
+		using credit cards you configured for your store, you may use this option to give customers
+		additional security with their credit card information.
+		</P>
+		<P>
+			In addition, you may also specify a message that customers would see when selecting a credit card with CVV2 mode active. This message will appear next to the CVV2 field and is generally used to explain how to obtain this number. </P>
+		</FONT>
+		</TD></TR>
+		<TR><TD>
+		&nbsp;
+		</TD></TR>
+		<TR><TD NOWRAP VALIGN = "top">
+		<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+		CVV2 Message:	</FONT>
+		</TD><TD WIDTH = "100%">
+		<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+			<TEXTAREA NAME = "Wizard_PlugNPay_Cvv_Message" ROWS = 10 COLS = 58 WRAP = "off"><MvEVAL EXPR = "{g.Wizard_PlugNPay_CVV_Message}" ></TEXTAREA>
+		</FONT>
+		</TD></TR>
+		<TR><TD VALIGN = "top" NOWRAP>
+				<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+				Available Payment Methods:
+				</FONT>
+			</TD><TD WIDTH = "100%">
+				<TABLE BORDER = 0>
+					<MvASSIGN NAME = "l.col" VALUE = 1>
+					<TR>
+					<MvASSIGN NAME = "l.method" VALUE = 1>
+					
+					<MvWHILE EXPR = "{ l.method LE g.Wizard_PlugNPay_Method_Count }">
+						
+						<MvASSIGN NAME = "l.method_code" VALUE = "{ g.Wizard_PlugNPay_Method_Code[l.method] }">
+						<MvASSIGN NAME = "l.method_name" VALUE = "{ g.Wizard_PlugNPay_Method_Name[l.method]}">
+						<MvASSIGN NAME = "l.method_type" VALUE = "{ g.Wizard_PlugNPay_Method_Type[l.method]}">
+						<MvASSIGN NAME = "l.method_enabled" VALUE = "{ g.Wizard_PlugNPay_Method_Enabled[l.method]}">
+						<MvASSIGN NAME = "l.method_cvv" VALUE = "{ g.Wizard_PlugNPay_Method_CVV[l.method]}">
+
+						<MvIF EXPR = "{ l.col GT 2 }">
+							<MvASSIGN NAME = "l.col" VALUE = 1>
+							</TR><TR>
+						</MvIF>
+
+						<TR>
+						<TD ALIGN = "left" VALIGN = "middle" NOWRAP>
+							<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+							<INPUT TYPE = "hidden" NAME = "{ 'Wizard_PlugNPay_Method_Code[' $ l.method $ ']' }" VALUE = "{ encodeentities( l.method_code) }">
+							<INPUT TYPE = "hidden" NAME = "{ 'Wizard_PlugNPay_Method_Name[' $ l.method $ ']' }" VALUE = "{ encodeentities( l.method_name) }">
+							<INPUT TYPE = "hidden" NAME = "{ 'Wizard_PlugNPay_Method_Type[' $ l.method $ ']' }" VALUE = "{ encodeentities( l.method_type) }">
+							<MvIF EXPR = "{l.method_enabled}">
+								<INPUT TYPE = "checkbox" NAME = "{ 'Wizard_PlugNPay_Method_Enabled[' $ l.method $ ']' }" VALUE = "1" CHECKED>
+							<MvELSE>
+								<INPUT TYPE = "checkbox" NAME = "{ 'Wizard_PlugNPay_Method_Enabled[' $ l.method $ ']' }" VALUE = "1">
+							</MvIF>
+							<MvEVAL EXPR = "{ l.method_name }">
+							</FONT>
+						</TD>
+						<TD>
+							<FONT SIZE = "-1" FACE = "Arial, Helvetica">
+							<MvIF EXPR = "{ l.method_type EQ 'CC' }">
+								<MvIF EXPR = "{l.method_cvv EQ 1}">
+									<INPUT TYPE = "checkbox" NAME = "{ 'Wizard_PlugNPay_Method_CVV[' $ l.method $ ']' }" VALUE = "1" CHECKED>Display CVV2 Field 
+								<MvELSE>
+									<INPUT TYPE = "checkbox" NAME = "{ 'Wizard_PlugNPay_Method_CVV[' $ l.method $ ']' }" VALUE = "1" >Display CVV2 Field 
+								</MvIF>
+							<MvELSE>
+								<INPUT TYPE = "hidden" NAME = "{ 'Wizard_PlugNPay_Method_CVV[' $ l.method $ ']' }" VALUE = "0" >
+							</MvIF>
+							
+							</Font>
+						</TD>
+						</TR>
+						
+						<MvASSIGN NAME = "l.col" VALUE = "{ l.col + 1 }">
+						<MvASSIGN NAME = "l.method" VALUE = "{ l.method + 1 }">
+					</MvWHILE>
+
+					<MvIF EXPR = "{ l.col LE 2 }">
+						</TR>
+					</MvIF>
+				</TABLE>
+
+				<INPUT TYPE = "hidden" NAME = "Wizard_PlugNPay_Method_Count" VALUE = "{ encodeentities( g.Wizard_PlugNPay_Method_Count) }">
+			</TD></TR>
+			
+		
+		<TR><TD COLSPAN = 2>
+		&nbsp;
+		</TD></TR>
+
+			<TR><TD VALIGN = "bottom" ALIGN = "left">
+				<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+				<INPUT TYPE = "button" VALUE = "Previous" ONCLICK = "Module_Wizard_Previous();">
+				</FONT>
+			</TD><TD VALIGN = "bottom" ALIGN = "right">
+				<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+				<INPUT TYPE = "button" VALUE = "Next" ONCLICK = "Module_Wizard_Finish();">
+				</FONT>
+			</TD></TR>
+		</TABLE>
+	<MvELSE>
+		<INPUT TYPE = "hidden" NAME = "Wizard_PlugNPay_Cvv_Message" VALUE = "{ encodeentities( g.Wizard_PlugNPay_Cvv_Message) }">	
+		
+		<MvASSIGN NAME = "l.method" VALUE = 1>
+			<MvWHILE EXPR = "{ l.method LE g.Wizard_PlugNPay_Method_Count }">
+				<MvASSIGN NAME = "l.method_code" VALUE = "{ g.Wizard_PlugNPay_Method_Code[l.method] }">
+				<MvASSIGN NAME = "l.method_name" VALUE = "{ g.Wizard_PlugNPay_Method_Name[l.method]}">
+				<MvASSIGN NAME = "l.method_type" VALUE = "{ g.Wizard_PlugNPay_Method_Type[l.method]}">
+				<MvASSIGN NAME = "l.method_enabled" VALUE = "{ g.Wizard_PlugNPay_Method_Enabled[l.method]}">
+				<MvASSIGN NAME = "l.method_cvv" VALUE = "{ g.Wizard_PlugNPay_Method_CVV[l.method]}">
+				<INPUT TYPE = "hidden" NAME = "{ 'Wizard_PlugNPay_Method_Code[' $ l.method $ ']' }" VALUE = "{ encodeentities( l.method_code) }">
+				<INPUT TYPE = "hidden" NAME = "{ 'Wizard_PlugNPay_Method_Name[' $ l.method $ ']' }" VALUE = "{ encodeentities( l.method_name) }">
+				<INPUT TYPE = "hidden" NAME = "{ 'Wizard_PlugNPay_Method_Type[' $ l.method $ ']' }"  VALUE = "{ encodeentities( l.method_type) }">
+				<INPUT TYPE = "hidden" NAME = "{ 'Wizard_PlugNPay_Method_Enabled[' $ l.method $ ']' }"  VALUE = "{ encodeentities( l.method_enabled) }">
+				<INPUT TYPE = "hidden" NAME = "{ 'Wizard_PlugNPay_Method_CVV[' $ l.method $ ']' }"  VALUE = "{ encodeentities( l.method_cvv) }">
+				<MvASSIGN NAME = "l.method" VALUE = "{ l.method + 1 }">
+			</MvWHILE>
+			<INPUT TYPE = "hidden" NAME = "Wizard_PlugNPay_Method_Count" VALUE = "{ encodeentities( g.Wizard_PlugNPay_Method_Count) }">
+	</MvIF>
+	
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+
+
+
+<MvFUNCTION NAME = "Module_Wizard_Summary_Fields" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "merchant,chargemethods, paymentmethods, cvv2message">
+</MvFUNCTION>
+-
+<MvFUNCTION NAME = "Module_Wizard_Summary_Prompt" PARAMETERS = "field_id" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.prompt" VALUE = "">
+
+	<MvIF EXPR = "{ l.field_id EQ 'merchant' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Login ID:">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'chargemethods' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Charge Method:">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'paymentmethods' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Available Payment Methods:">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'cvv2message' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "CVV2 Message:">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.prompt }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Wizard_Summary_Field" PARAMETERS = "field_id" STANDARDOUTPUTLEVEL = "text, html, compresswhitespace">
+	<MvASSIGN NAME = "l.ok" VALUE = 1>
+	
+	<MvIF EXPR = "{ l.field_id EQ 'merchant' }">
+		<MvEVAL EXPR = "{ g.Wizard_PlugNPay_merchant}">
+	</MvIF>
+	
+	<MvIF EXPR = "{ l.field_id EQ 'chargemethods' }">
+		<MvIF EXPR = "{ g.Wizard_PlugNPay_Auth_Capt EQ 1}">
+			Online (Automatic Capture) 
+		<MvELSE>
+			Offline or Auth/Post-Auth 
+		</MvIF>
+		
+	</MvIF>
+	
+	<MvIF EXPR = "{ l.field_id EQ 'paymentmethods' }">
+		<MvASSIGN NAME = "l.first" VALUE = 1>
+		<MvASSIGN NAME = "l.card" VALUE = 1>
+		<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+		<MvWHILE EXPR = "{ l.card LE g.Wizard_PlugNPay_Method_Count }">
+			<MvASSIGN NAME = "l.method_enabled" VALUE = "{ g.Wizard_PlugNPay_Method_Enabled[l.card] }">
+			<MvASSIGN NAME = "l.method_name" VALUE = "{ g.Wizard_PlugNPay_Method_Name[l.card] }">
+			<MvASSIGN NAME = "l.method_cvv" VALUE = "{ g.Wizard_PlugNPay_Method_CVV[l.card] }">
+			<MvIF EXPR = "{ l.method_enabled}">
+				<MvEVAL EXPR = "{ l.method_name }">
+				<MvIF EXPR = "{ l.method_cvv EQ 1}">
+					- <B>CVV2</B> enabled
+				</MvIF>
+				<br>
+			</MvIF>
+		</FONT>
+			<MvASSIGN NAME = "l.card" VALUE = "{ l.card + 1 }">
+		</MvWHILE>
+	</MvIF>
+	
+	<MvIF EXPR = "{ l.field_id EQ 'cvv2message' }">
+		<MvEVAL EXPR = "{ g.Wizard_PlugNPay_CVV_Message }">
+	</MvIF>
+	<MvFUNCTIONRETURN VALUE = "{ l.ok }">
+</MvFUNCTION>
+
+<MvCOMMENT>
+	************************************ Module Payment Functions ************************************ .
+</MvCOMMENT>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Methods" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.methods" VALUE = "">
+
+	<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+	<MvIF EXPR = "{ l.ok }">
+		<MvGO NAME = "PlugNPayMethods" ROW = "top">
+		<MvWHILE EXPR = "{ NOT PlugNPayMethods.d.EOF }">
+			<MvIF EXPR = "{ PlugNPayMethods.d.enabled }">
+				<MvIF EXPR = "{ len( l.methods ) }">
+					<MvASSIGN NAME = "l.methods" VALUE = "{ l.methods $ ',' }">
+				</MvIF>
+
+				<MvASSIGN NAME = "l.methods" VALUE = "{ l.methods $ PlugNPayMethods.d.code $ ':' $ PlugNPayMethods.d.name }">
+			</MvIF>
+
+			<MvSKIP NAME = "PlugNPayMethods" ROWS = "1">
+		</MvWHILE>
+
+		<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.methods }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_URL" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.url" VALUE = "">
+	<MvFUNCTIONRETURN VALUE = "{ l.url }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Description" PARAMETERS = "data" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.desc" VALUE = "">
+
+	<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+	<MvIF EXPR = "{ l.ok }">
+		<MvFIND NAME = "PlugNPayMethods" VALUE = "{ l.data }" EXACT>
+		<MvIF EXPR = "{ NOT PlugNPayMethods.d.EOF }">
+			<MvASSIGN NAME = "l.desc" VALUE = "{ PlugNPayMethods.d.name }">
+		</MvIF>
+
+		<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.desc }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Message" PARAMETERS = "data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Hide_Additional_Fields" PARAMETERS = "data" STANDARDOUTPUTLEVEL = "text, html, compresswhitespace">
+	<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+	<MvIF EXPR = "{ l.ok }">
+		<MvFIND NAME = "PlugNPayMethods" VALUE = "{ l.data }" EXACT>
+		<MvIF EXPR = "{ NOT PlugNPayMethods.d.EOF }">
+			<INPUT TYPE = "hidden" NAME = "PlugNPay_Method_Type" VALUE = "{ encodeentities( PlugNPayMethods.d.type) }">
+			<INPUT TYPE = "hidden" NAME = "PlugNPay_Method_CVV" VALUE = "{ encodeentities( PlugNPayMethods.d.CVV) }">
+		</MvIF>
+		<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+	</MvIF>
+	<MvFUNCTIONRETURN VALUE = "{ l.ok }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Fields" PARAMETERS = "data" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.fields" VALUE = "">
+
+	<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+	<MvIF EXPR = "{ l.ok }">
+		<MvFIND NAME = "PlugNPayMethods" VALUE = "{ l.data }" EXACT>
+		<MvIF EXPR = "{ NOT PlugNPayMethods.d.EOF }">
+			<MvIF EXPR = "{ PlugNPayMethods.d.type EQ 'CC' }">
+				<MvIF EXPR = "{ PlugNPayMethods.d.CVV }">
+					<MvASSIGN NAME = "l.fields" VALUE = "cc_name,cc_number,cc_exp,cc_cvv">
+				<MvELSE>
+					<MvASSIGN NAME = "l.fields" VALUE = "cc_name,cc_number,cc_exp">
+				</MvIF>
+			</MvIF>
+			<MvIF EXPR = "{ PlugNPayMethods.d.type EQ 'ECHECK' }">
+				<MvASSIGN NAME = "l.fields" VALUE = "check_name,check_bank,check_acct,check_acct_type,check_route,check_num">
+			</MvIF>
+			<MvIF EXPR = "{ PlugNPayMethods.d.type EQ 'MOCPAY' }">
+				<MvASSIGN NAME = "l.fields" VALUE = "cell_phone,moc_code">
+			</MvIF>
+			<MvIF EXPR = "{ PlugNPayMethods.d.type EQ 'GC' }">
+				<MvASSIGN NAME = "l.fields" VALUE = "gc_note1,gc_note2,card_gc_paytype,gc_number,gc_name,cc_number,cc_exp">
+			</MvIF>
+		</MvIF>
+
+		<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.fields }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Prompt" PARAMETERS = "data, field_id" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.prompt" VALUE = "">
+
+	<MvIF EXPR = "{ l.field_id EQ 'cc_name' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Name on Card:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'cc_number' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Card Number:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'cc_exp' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Expiration Date:">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'cc_cvv' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "CVV:">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'check_name' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Name on Account:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'check_bank' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Bank Name:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'check_acct' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Account Number:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'check_acct_type' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Account Type:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'card_gc_paytype' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Payment Type:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'gc_note1' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Note:">
+	</MvIF>
+	
+	<MvIF EXPR = "{ l.field_id EQ 'gc_note2' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = " ">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'check_route' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "9 Digit Routing Number:">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'check_num' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Check Number:">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'cell_phone' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Cell Phone :">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'moc_code' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Mocapay Code:">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'gc_number' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "GiftCard Number:">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'gc_name' }">
+		<MvASSIGN NAME = "l.prompt" VALUE = "Name on Card:">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.prompt }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Invalid" PARAMETERS = "data, field_id" STANDARDOUTPUTLEVEL = "">
+
+	<MvASSIGN NAME = "l.invalid" VALUE = 0>
+
+	<MvIF EXPR = "{ l.field_id EQ 'cc_name' AND g.PlugNPay_CardName_Invalid }">
+		<MvASSIGN NAME = "l.invalid" VALUE = 1>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'cc_number' AND g.PlugNPay_Card_Num_Invalid }">
+		<MvASSIGN NAME = "l.invalid" VALUE = 1>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'cc_exp' AND g.PlugNPay_CardExp_Invalid }">
+		<MvASSIGN NAME = "l.invalid" VALUE = 1>
+	</MvIF>
+
+	
+	<MvIF EXPR = "{ l.field_id EQ 'cc_cvv' AND g.PlugNPay_Card_CVV_Invalid }">
+		<MvASSIGN NAME = "l.invalid" VALUE = 1>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'check_name' AND g.PlugNPay_AcctName_Invalid }">
+		<MvASSIGN NAME = "l.invalid" VALUE = 1>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'check_bank' AND g.PlugNPay_Bank_Name_Invalid }">
+		<MvASSIGN NAME = "l.invalid" VALUE = 1>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'check_acct' AND g.PlugNPay_Bank_Acct_Num_Invalid }">
+		<MvASSIGN NAME = "l.invalid" VALUE = 1>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'check_route' AND g.PlugNPay_Bank_ABA_Code_Invalid }">
+		<MvASSIGN NAME = "l.invalid" VALUE = 1>
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'check_num' AND g.PlugNPay_Bank_Check_Num_Invalid }">
+		<MvASSIGN NAME = "l.invalid" VALUE = 1>
+	</MvIF>
+
+
+	<MvIF EXPR = "{ l.field_id EQ 'cell_phone' AND g.PlugNPay_mcp_cell_phone_Invalid }">
+		<MvASSIGN NAME = "l.invalid" VALUE = 1>
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'moc_code' AND g.PlugNPay_mcp_moc_code_Invalid }">
+		<MvASSIGN NAME = "l.invalid" VALUE = 1>
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'gc_number' AND g.PlugNPay_merc_gc_number_Invalid }">
+		<MvASSIGN NAME = "l.invalid" VALUE = 1>
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'gc_name' AND g.PlugNPay_merc_gc_name_Invalid }">
+		<MvASSIGN NAME = "l.invalid" VALUE = 1>
+	</MvIF>
+	
+	
+	<MvFUNCTIONRETURN VALUE = "{ l.invalid }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Field" PARAMETERS = "data, field_id" STANDARDOUTPUTLEVEL = "text, html, compresswhitespace">
+
+	<MvIF EXPR = "{ l.field_id EQ 'cc_name' }">
+		<INPUT TYPE = "text" NAME = "PlugNPay_CardName" SIZE = 16 maxlength="39" VALUE = "{ encodeentities( g.PlugNPay_CardName) }">&nbsp;
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'cc_number' }">
+		<INPUT TYPE = "text" NAME = "PlugNPay_Card_Num" SIZE = 16 maxlength="16"	VALUE = "{ encodeentities( g.PlugNPay_Card_Num) }" MAXLENGTH="16">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'cc_exp' }">
+		<SELECT NAME = "PlugNPay_CardExp_Month">
+		<OPTION VALUE = "">&lt;Month&gt;</OPTION>
+	
+		<MvASSIGN NAME = "l.month" VALUE = 1>
+		<MvWHILE EXPR = "{ l.month LE 12 }">
+			<MvIF EXPR = "{ g.PlugNPay_CardExp_Month EQ l.month }">
+				<OPTION VALUE = "{ encodeentities( l.month ) }"	SELECTED><MvEVAL EXPR = "{ l.month }"></OPTION>
+			<MvELSE>
+				<OPTION VALUE = "{ encodeentities( l.month ) }" ><MvEVAL EXPR = "{ l.month }"></OPTION>
+			</MvIF>
+
+			<MvASSIGN NAME = "l.month" VALUE = "{ l.month + 1 }">
+		</MvWHILE>
+
+		</SELECT>
+
+		/
+		<MvASSIGN NAME = "l.year" VALUE = "{ s.dyn_tm_year }">
+		<MvASSIGN NAME = "l.count" VALUE = 1>
+
+		<SELECT NAME = "PlugNPay_CardExp_Year">
+		<OPTION VALUE = "">&lt;Year&gt;</OPTION>
+
+		<MvWHILE EXPR = "{ l.count LE 10 }">
+			<MvIF EXPR = "{ g.PlugNPay_CardExp_Year EQ l.year }">
+				<OPTION VALUE = "{ encodeentities( l.year ) }" SELECTED><MvEVAL EXPR = "{ l.year }"></OPTION>
+			<MvELSE>
+				<OPTION VALUE = "{ encodeentities( l.year ) }" ><MvEVAL EXPR = "{ l.year }"></OPTION>
+			</MvIF>
+
+			<MvASSIGN NAME = "l.year" VALUE = "{ l.year + 1 }">
+			<MvASSIGN NAME = "l.count" VALUE = "{ l.count + 1 }">
+		</MvWHILE>
+
+		</SELECT>
+	</MvIF>
+	
+		
+	<MvIF EXPR = "{ l.field_id EQ 'cc_cvv' }">
+		<INPUT TYPE = "text" NAME = "PlugNPay_Card_CVV" SIZE = 4 MAXLENGTH = "4" VALUE = "{ encodeentities( g.PlugNPay_Card_CVV) }">
+		<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+		<MvIF EXPR = "{ l.ok }">
+			<MvASSIGN NAME = "g.Store_PlugNPay_Cvv_Message"		VALUE = "{ PlugNPay.d.cvvmsg }">
+			<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+			<MvEVAL EXPR = "{ encodeentities( g.Store_PlugNPay_CVV_Message) }">
+		</MvIF>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'check_name' }">
+		<INPUT TYPE = "text" NAME = "PlugNPay_AcctName" SIZE = 20  VALUE = "{ encodeentities( g.PlugNPay_AcctName) }">&nbsp;
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'check_bank' }">
+		<INPUT TYPE = "text" NAME = "PlugNPay_Bank_Name" SIZE = 20 VALUE = "{ encodeentities( g.PlugNPay_Bank_Name) }"		>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'check_acct' }">
+		<INPUT TYPE = "text" NAME = "PlugNPay_Bank_Acct_Num" SIZE = 20 VALUE = "{ encodeentities( g.PlugNPay_Bank_Acct_Num) }"	>
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'check_acct_type' }">
+		<MvIF EXPR = "{ g.PlugNPay_Bank_Acct_Type EQ 'SAVING' }">
+			<INPUT TYPE = "radio" NAME = "PlugNPay_Bank_Acct_Type" VALUE = "CHECKING">Checking&nbsp;&nbsp;
+			<INPUT TYPE = "radio" NAME = "PlugNPay_Bank_Acct_Type" VALUE = "SAVING" CHECKED >Savings
+		<MvELSE>
+			<INPUT TYPE = "radio" NAME = "PlugNPay_Bank_Acct_Type" VALUE = "CHECKING" CHECKED >Checking&nbsp;&nbsp;
+			<INPUT TYPE = "radio" NAME = "PlugNPay_Bank_Acct_Type" VALUE = "SAVING" >Savings
+		</MvIF>
+	</MvIF>
+	
+	
+
+	<MvIF EXPR = "{ l.field_id EQ 'check_route' }">
+		<INPUT TYPE = "text" NAME = "PlugNPay_Bank_ABA_Code" SIZE = 9 maxlength="9" VALUE = "{ encodeentities( g.PlugNPay_Bank_ABA_Code) }">
+	</MvIF>
+	
+	<MvIF EXPR = "{ l.field_id EQ 'check_num' }">
+		<INPUT TYPE = "text" NAME = "PlugNPay_Bank_Check_Num" SIZE = 9 maxlength="9"	VALUE = "{ encodeentities( g.PlugNPay_Bank_Check_Num) }">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'cell_phone' }">
+		<INPUT TYPE = "text" NAME = "PlugNPay_mcp_cell_phone" SIZE = 16  VALUE = "{ encodeentities( g.PlugNPay_mcp_cell_phone) }">
+	</MvIF>
+	
+	<MvIF EXPR = "{ l.field_id EQ 'moc_code' }">
+		<INPUT TYPE = "text" NAME = "PlugNPay_mcp_moc_code" SIZE = 16  VALUE = "{ encodeentities( g.PlugNPay_mcp_moc_code) }">
+	</MvIF>	
+
+	<MvIF EXPR = "{ l.field_id EQ 'gc_number' }">
+		<INPUT TYPE = "text" NAME = "PlugNPay_merc_gc_number" SIZE = 16 maxlength="20" VALUE = "{ encodeentities( g.PlugNPay_merc_gc_number) }">
+	</MvIF>	
+	<MvIF EXPR = "{ l.field_id EQ 'gc_name' }">
+		<INPUT TYPE = "text" NAME = "PlugNPay_merc_gc_name" SIZE = 16 maxlength="39" VALUE = "{ encodeentities( g.PlugNPay_merc_gc_name) }">
+	</MvIF>	
+	<MvIF EXPR = "{ l.field_id EQ 'card_gc_paytype' }">
+		<MvIF EXPR = "{ g.PlugNPay_merc_gc_paytype EQ 'PARTIAL' }">
+			<INPUT TYPE = "radio" NAME = "PlugNPay_merc_gc_paytype" VALUE = "GIFTCARDONLY" >Gift Card Only&nbsp;&nbsp;
+			<INPUT TYPE = "radio" NAME = "PlugNPay_merc_gc_paytype" VALUE = "PARTIAL" CHECKED  >Unsure/Partial Gift Card Amount 
+			
+		<MvELSE>
+			<INPUT TYPE = "radio" NAME = "PlugNPay_merc_gc_paytype" VALUE = "GIFTCARDONLY" CHECKED  >Gift Card Only&nbsp;&nbsp;
+			<INPUT TYPE = "radio" NAME = "PlugNPay_merc_gc_paytype" VALUE = "PARTIAL"  >Unsure/Partial Gift Card Amount
+			
+		</MvIF>
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'gc_note1' }">
+		<font style="font-size:10" >For 'Gift Card Only' GiftCard Number & Name on Card fields are mandatory.</font></br>
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'gc_note2' }">
+		<font style="font-size:10" >For 'Unsure/Partial Gift Card Amount' all fields are mandatory.</font></br>
+	</MvIF>
+	
+
+	
+	<MvFUNCTIONRETURN VALUE = "{ l.ok }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Validate" PARAMETERS = "pay_data" STANDARDOUTPUTLEVEL = "">
+
+	<MvASSIGN NAME = "l.valid" VALUE = 1>
+	
+	<MvIF EXPR = "{ g.PlugNPay_Method_Type EQ 'CC' }">
+
+		<MvASSIGN NAME = "g.PlugNPay_CardName" VALUE = "{ ltrim( rtrim( g.PlugNPay_CardName ) ) }">
+		<MvIF EXPR = "{ len( g.PlugNPay_CardName ) EQ 0 }">
+			<MvASSIGN NAME = "g.PlugNPay_CardName_Invalid" VALUE = 1>
+			<MvASSIGN NAME = "l.valid" VALUE = 0>
+		</MvIF>
+
+
+		<MvASSIGN NAME = "g.PlugNPay_Card_Num" VALUE = "{ glosub( glosub( ltrim( rtrim( g.PlugNPay_Card_Num ) ), '-', '' ), ' ', '' ) }">
+		<MvIF EXPR = "{ len( g.PlugNPay_Card_Num ) EQ 0 }">
+			<MvASSIGN NAME = "g.PlugNPay_Card_Num_Invalid" VALUE = 1>
+			<MvASSIGN NAME = "l.valid" VALUE = 0>
+		</MvIF>
+
+		<MvIF EXPR = "{ ( g.PlugNPay_CardExp_Year LT s.dyn_tm_year ) OR
+						( ( g.PlugNPay_CardExp_Year EQ s.dyn_tm_year ) AND
+						  ( g.PlugNPay_CardExp_Month LT s.dyn_tm_mon ) ) }">
+			<MvASSIGN NAME = "l.valid" VALUE = 0>
+			<MvASSIGN NAME = "g.PlugNPay_CardExp_Invalid" VALUE = 1>
+		</MvIF>
+		
+		
+		<MvIF EXPR ="{ g.PlugNPay_Method_CVV }">
+			<MvASSIGN NAME = "g.PlugNPay_Card_CVV" VALUE = "{ ltrim( rtrim( g.PlugNPay_Card_CVV )) }">
+			<MvIF EXPR = "{ NOT( (len(g.PlugNPay_Card_CVV) EQ 3) OR (len(g.PlugNPay_Card_CVV) EQ 4) ) }">
+				<MvASSIGN NAME = "g.PlugNPay_Card_CVV_Invalid" VALUE = 1>
+				<MvASSIGN NAME = "l.valid" VALUE = 0>
+			</MvIF>
+		</MvIF>
+	</MvIF>
+	<MvIF EXPR = "{ g.PlugNPay_Method_Type EQ 'ECHECK' }">
+
+		<MvASSIGN NAME = "g.PlugNPay_AcctName" VALUE = "{ ltrim( rtrim( g.PlugNPay_AcctName ) ) }">
+		<MvIF EXPR = "{ len( g.PlugNPay_AcctName ) EQ 0 }">
+			<MvASSIGN NAME = "g.PlugNPay_AcctName_Invalid" VALUE = 1>
+			<MvASSIGN NAME = "l.valid" VALUE = 0>
+		</MvIF>
+	
+		<MvASSIGN NAME = "g.PlugNPay_Bank_Name" VALUE = "{ ltrim( rtrim( g.PlugNPay_Bank_Name ) ) }">
+		<MvIF EXPR = "{ len( g.PlugNPay_Bank_Name ) EQ 0 }">
+			<MvASSIGN NAME = "g.PlugNPay_Bank_Name_Invalid" VALUE = 1>
+			<MvASSIGN NAME = "l.valid" VALUE = 0>
+		</MvIF>
+		
+		<MvASSIGN NAME = "g.PlugNPay_Bank_Acct_Num" VALUE = "{ glosub( glosub( ltrim( rtrim( g.PlugNPay_Bank_Acct_Num ) ), '-', '' ), ' ', '' ) }">
+		<MvIF EXPR = "{ len( g.PlugNPay_Bank_Acct_Num ) EQ 0 }">
+			<MvASSIGN NAME = "g.PlugNPay_Bank_Acct_Num_Invalid" VALUE = 1>
+			<MvASSIGN NAME = "l.valid" VALUE = 0>
+		</MvIF>
+		
+		<MvASSIGN NAME = "g.PlugNPay_Bank_ABA_Code" VALUE = "{ glosub( glosub( ltrim( rtrim( g.PlugNPay_Bank_ABA_Code ) ), '-', '' ), ' ', '' ) }">
+		<MvIF EXPR = "{ len( g.PlugNPay_Bank_ABA_Code ) NE 9 }">
+			<MvASSIGN NAME = "g.PlugNPay_Bank_ABA_Code_Invalid" VALUE = 1>
+			<MvASSIGN NAME = "l.valid" VALUE = 0>
+		</MvIF>
+		
+		<MvCOMMENT> <MvEVAL EXPR = "{g.PlugNPay_Bank_Check_Num}"> </MvCOMMENT>
+		
+		<MvASSIGN NAME = "g.PlugNPay_Bank_Check_Num" VALUE = "{ glosub( glosub( ltrim( rtrim( g.PlugNPay_Bank_Check_Num) ), '-', '' ), ' ', '' ) }">
+		<MvIF EXPR = "{ len( g.PlugNPay_Bank_Check_Num ) EQ 0 }">
+			<MvASSIGN NAME = "g.PlugNPay_Bank_Check_Num_Invalid" VALUE = 1>
+			<MvASSIGN NAME = "l.valid" VALUE = 0>
+		</MvIF>
+		
+
+	</MvIF>
+
+	<MvIF EXPR = "{ g.PlugNPay_Method_Type EQ 'MOCPAY' }">
+		<MvASSIGN NAME = "g.PlugNPay_mcp_cell_phone" VALUE = "{ glosub( glosub( ltrim( rtrim( g.PlugNPay_mcp_cell_phone ) ), '-', '' ), ' ', '' ) }">
+
+		<MvIF EXPR = "{ len( g.PlugNPay_mcp_cell_phone ) EQ 0 }">
+			<MvASSIGN NAME = "g.PlugNPay_mcp_cell_phone_Invalid" VALUE = 1>
+			<MvASSIGN NAME = "l.valid" VALUE = 0>
+		</MvIF>
+		<MvASSIGN NAME = "g.PlugNPay_mcp_moc_code" VALUE = "{ glosub( glosub( ltrim( rtrim( g.PlugNPay_mcp_moc_code ) ), '-', '' ), ' ', '' ) }">
+		<MvIF EXPR = "{ len( g.PlugNPay_mcp_moc_code ) EQ 0 }">
+			<MvASSIGN NAME = "g.PlugNPay_mcp_moc_code_Invalid" VALUE = 1>
+			<MvASSIGN NAME = "l.valid" VALUE = 0>
+		</MvIF>
+	</MvIF>
+
+	<MvIF EXPR = "{ g.PlugNPay_Method_Type EQ 'GC' }">
+		<MvASSIGN NAME = "g.PlugNPay_merc_gc_number" VALUE = "{ glosub( glosub( ltrim( rtrim( g.PlugNPay_merc_gc_number ) ), '-', '' ), ' ', '' ) }">
+
+		<MvIF EXPR = "{ len( g.PlugNPay_merc_gc_number ) EQ 0 }">
+			<MvASSIGN NAME = "g.PlugNPay_merc_gc_number_Invalid" VALUE = 1>
+			<MvASSIGN NAME = "l.valid" VALUE = 0>
+		</MvIF>
+		<MvASSIGN NAME = "g.PlugNPay_merc_gc_name" VALUE = "{ glosub( glosub( ltrim( rtrim( g.PlugNPay_merc_gc_name ) ), '-', '' ), ' ', '' ) }">
+		<MvIF EXPR = "{ len( g.PlugNPay_merc_gc_name ) EQ 0 }">
+			<MvASSIGN NAME = "g.PlugNPay_merc_gc_name_Invalid" VALUE = 1>
+			<MvASSIGN NAME = "l.valid" VALUE = 0>
+		</MvIF>
+
+		<MvIF EXPR = "{ g.PlugNPay_merc_gc_paytype EQ 'PARTIAL' }">
+			<MvASSIGN NAME = "g.PlugNPay_Card_Num" VALUE = "{ glosub( glosub( ltrim( rtrim( g.PlugNPay_Card_Num ) ), '-', '' ), ' ', '' ) }">
+			<MvIF EXPR = "{ len( g.PlugNPay_Card_Num ) EQ 0 }">
+			<MvASSIGN NAME = "g.PlugNPay_Card_Num_Invalid" VALUE = 1>
+			<MvASSIGN NAME = "l.valid" VALUE = 0>
+			</MvIF>
+
+			<MvIF EXPR = "{ ( g.PlugNPay_CardExp_Year LT s.dyn_tm_year ) OR
+						( ( g.PlugNPay_CardExp_Year EQ s.dyn_tm_year ) AND
+						  ( g.PlugNPay_CardExp_Month LT s.dyn_tm_mon ) ) }">
+			<MvASSIGN NAME = "l.valid" VALUE = 0>
+			<MvASSIGN NAME = "g.PlugNPay_CardExp_Invalid" VALUE = 1>
+			</MvIF>
+		</MvIF>
+
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.valid }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Report_Description" PARAMETERS = "data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "PlugNPay.Com">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Report_Fields" PARAMETERS = "data, secure_data" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+	<MvIF EXPR = "{ l.ok }">
+		<MvFIND NAME = "PlugNPayOrders" VALUE = "{ Orders.d.id }" EXACT>
+		<MvIF EXPR = "{ NOT PlugNPayOrders.d.EOF }">
+			<MvASSIGN NAME = "g.PlugNPayOrder_OrderNumber" VALUE = "{ PlugNPayOrders.d.order_id }">
+			<MvASSIGN NAME = "g.PlugNPayOrder_Error" VALUE = "{ PlugNPayOrders.d.r_r_text }">
+			<MvASSIGN NAME = "g.PlugNPayOrder_ApprovalCode" VALUE = "{ PlugNPayOrders.d.auth_code }">
+			<MvASSIGN NAME = "g.PlugNPayOrder_AVS_Code"	VALUE = "{ PlugNPayOrders.d.avs_code }">
+			<MvASSIGN NAME = "g.PlugNPayOrder_ReferenceNumber" VALUE = "{ PlugNPayOrders.d.trans_id }">
+			<MvASSIGN NAME = "g.PlugNPayOrder_CC_Number" VALUE = "{ PlugNPayOrders.d.card_num }">
+			<MvASSIGN NAME = "g.PlugNPayOrder_CC_Name" VALUE = "{ PlugNPayOrders.d.cc_name }">
+			<MvASSIGN NAME = "g.PlugNPayOrder_CC_Exp_Date" VALUE = "{ PlugNPayOrders.d.exp_date }">
+			<MvASSIGN NAME = "g.PlugNPayOrder_CC_CVV"	VALUE = "{ PlugNPayOrders.d.card_cvv}">
+			<MvASSIGN NAME = "g.PlugNPayOrder_CC_CVVResp"	VALUE = "{ PlugNPayOrders.d.cvvresp}">
+			<MvASSIGN NAME = "g.PlugNPayOrder_Bank_Name" VALUE = "{ PlugNPayOrders.d.bank_name }">
+			<MvASSIGN NAME = "g.PlugNPayOrder_Acct_Num" VALUE = "{ PlugNPayOrders.d.acct_num }">
+			<MvASSIGN NAME = "g.PlugNPayOrder_Acct_Type" VALUE = "{ PlugNPayOrders.d.acct_type }">
+			<MvASSIGN NAME = "g.PlugNPayOrder_ABA_Code" VALUE = "{ PlugNPayOrders.d.aba_code }">
+			<MvASSIGN NAME = "g.PlugNPayOrder_Check_Num" VALUE = "{ PlugNPayOrders.d.check_num}">
+
+			<MvASSIGN NAME = "g.PlugNPayOrder_Cell_Phone" VALUE = "{ PlugNPayOrders.d.cell_phone}">	
+			<MvASSIGN NAME = "g.PlugNPayOrder_Moc_Code" VALUE = "{ PlugNPayOrders.d.moc_code}">
+
+			<MvASSIGN NAME = "g.PlugNPayOrder_gc_number" VALUE = "{ PlugNPayOrders.d.gc_number}">
+			<MvASSIGN NAME = "g.PlugNPayOrder_gc_name" VALUE = "{ PlugNPayOrders.d.gc_name}">
+			<MvASSIGN NAME = "g.PlugNPayOrder_gc_paytype" VALUE = "{ PlugNPayOrders.d.gc_paytype}">			
+
+			<MvASSIGN NAME = "g.PlugNPayOrder_Time" VALUE = "{ PlugNPayOrders.d.time }">
+
+			<MvIF EXPR = "{ PlugNPayOrders.d.method EQ 'CC' }">
+				<MvASSIGN NAME = "l.fields" VALUE = "cc_name,card_num,exp_date,card_cvv,cvvresp,trans_id,auth_code,avs_code,r_r_text,time">
+			</MvIF>
+			<MvIF EXPR = "{ PlugNPayOrders.d.method EQ 'ECHECK' }">
+				<MvASSIGN NAME = "l.fields" VALUE = "bcard_name,bank_name,acct_num,acct_type,aba_code,check_num,trans_id,auth_code,time">
+			</MvIF>
+			<MvIF EXPR = "{ PlugNPayOrders.d.method EQ 'MOCPAY' }">
+				<MvASSIGN NAME = "l.fields" VALUE = "cell_phone,moc_code">
+			</MvIF>
+
+			<MvIF EXPR = "{ PlugNPayOrders.d.method EQ 'GC' }">
+				<MvASSIGN NAME = "l.fields" VALUE = "gc_number,gc_name,gc_paytype,card_num,exp_date">
+			</MvIF>
+
+			<MvIF EXPR = "{ len( g.PlugNPayOrder_Error ) }">
+				<MvASSIGN NAME = "l.fields" VALUE = "{ l.fields $ ',ch_error' }">
+			</MvIF>
+		</MvIF>
+
+		<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.fields }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Report_Label" PARAMETERS = "field_id" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.label" VALUE = "">
+
+	<MvIF EXPR = "{ l.field_id EQ 'bank_name' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Bank Name:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'acct_num' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Account Number:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'acct_type' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Account Type:">
+	</MvIF>
+	
+
+	<MvIF EXPR = "{ l.field_id EQ 'aba_code' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Bank Routing Code:">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'check_num' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Check Number:">
+	</MvIF>
+	
+
+	<MvIF EXPR = "{ l.field_id EQ 'cc_name' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Name On Card:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'bcard_name' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Name On Account:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'card_num' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Card Number:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'exp_date' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Expiration Date:">
+	</MvIF>
+	
+	<MvIF EXPR = "{ l.field_id EQ 'card_cvv' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Card CVV2 Number:">
+	</MvIF>
+	
+	<MvIF EXPR = "{ l.field_id EQ 'cvvresp' }">
+		<MvASSIGN NAME = "l.label" VALUE = "CVV2 Response:">
+	</MvIF>
+	
+	
+	<MvIF EXPR = "{ l.field_id EQ 'time' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Time:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'cell_phone' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Cell Phone:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'moc_code' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Mocapay Code:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'gc_number' }">
+		<MvASSIGN NAME = "l.label" VALUE = "GiftCard Number:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'gc_name' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Name on Card:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'gc_paytype' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Payment Type:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'trans_id' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Transaction ID:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'auth_code' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Authorization Code:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'avs_code' }">
+		<MvASSIGN NAME = "l.label" VALUE = "AVS Code:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'order_id' }">
+		<MvASSIGN NAME = "l.label" VALUE = "Order #:">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'r_r_text' }">
+		<MvASSIGN NAME = "l.label" VALUE = "PlugNPay Response:">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.label }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Report_Value" PARAMETERS = "field_id,data,secure_data" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.value" VALUE = "">
+	<MvIF EXPR = "{ l.field_id EQ 'bank_name' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_Bank_Name }">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'acct_num' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_Acct_Num }">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'acct_type' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_Acct_Type }">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'aba_code' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_ABA_Code }">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'check_num' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_Check_Num}">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'cell_phone' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_Cell_Phone}">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'moc_code' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_Moc_Code}">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'gc_number' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_gc_number }">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'gc_name' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_gc_name }">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'gc_paytype' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_gc_paytype}">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'bcard_name' OR l.field_id EQ 'cc_name' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_CC_Name }">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'card_num' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_CC_Number }">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'exp_date' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_CC_Exp_Date }">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'card_cvv' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_CC_CVV}">
+	</MvIF>
+	<MvIF EXPR = "{ l.field_id EQ 'cvvresp' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_CC_CVVResp}">
+	</MvIF>
+	
+	
+
+	<MvIF EXPR = "{ l.field_id EQ 'time' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ padl( time_t_month( g.PlugNPayOrder_Time, timezone() ), 2, '0') $ '/' $ padl( time_t_dayofmonth( g.PlugNPayOrder_Time, timezone() ), 2, '0')
+									$ '/' $ time_t_year( g.PlugNPayOrder_Time, timezone() ) $ ' - ' $ padl( time_t_hour( g.PlugNPayOrder_Time, timezone() ), 2, '0' )
+									$ ':' $ padl( time_t_min( g.PlugNPayOrder_Time, timezone() ), 2, '0' ) $ ':' $ padl( time_t_sec( g.PlugNPayOrder_Time, timezone() ), 2, '0' )
+									$ ' ' $ stm_zone }">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'trans_id' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_ReferenceNumber }">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'auth_code' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_ApprovalCode }">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'avs_code' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_AVS_Code }">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'order_id' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_OrderNumber }">
+	</MvIF>
+
+	<MvIF EXPR = "{ l.field_id EQ 'r_r_text' }">
+		<MvASSIGN NAME = "l.value" VALUE = "{ g.PlugNPayOrder_Error }">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.value }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Authorize" PARAMETERS = "module_data, total, data VAR, secure_data VAR"
+STANDARDOUTPUTLEVEL = "">
+	
+	<MvASSIGN NAME = "l.processed" VALUE = 0>
+	
+	<MvASSIGN NAME = "l.data" VALUE = "{ l.module_data }">
+	
+	<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+	
+	<MvIF EXPR = "{ l.ok }">
+		
+		<MvFIND NAME = "PlugNPayMethods" VALUE = "{ l.data }" EXACT>
+		
+		<MvASSIGN NAME = "l.Version"			VALUE = "1.0">
+		<MvASSIGN NAME = "l.publisher_name"		VALUE = "{ PlugNPay.d.merchant }">
+
+		<MvIF EXPR = "{PlugNPay.d.testmode EQ 1}">
+			<MvASSIGN NAME = "l.mode"			VALUE = "debug">
+		<MvELSE>
+			<MvASSIGN NAME = "l.mode"			VALUE = "auth">
+		</MvIF>
+		
+		<MvASSIGN NAME = "l.convert"			VALUE = "underscores">
+		
+		<MvIF EXPR = "{PlugNPay.d.authcap EQ 1}">
+			<MvASSIGN NAME = "l.authtype"			VALUE = "authpostauth">
+		<MvELSE>
+			<MvASSIGN NAME = "l.authtype"			VALUE = "authonly">
+		</MvIF>
+		
+		<MvASSIGN NAME = "l.orderID"			VALUE = "Online Customer"> 
+		<MvASSIGN NAME = "l.description"			VALUE = "Miva Merchant Order">
+		<MvASSIGN NAME = "l.order_id"				VALUE = "Online Customer">
+		<MvASSIGN NAME = "l.method"				VALUE = "{ PlugNPayMethods.d.type }">
+		<MvASSIGN NAME = "l.card_amount"	VALUE = "{ l.total ROUND 2 }">
+		
+		<MvASSIGN NAME = "l.card_name"				VALUE = "{ g.PlugNPay_CardName }">
+		<MvASSIGN NAME = "l.email"				VALUE = "{ BasketList.d.bill_email }">
+		<MvASSIGN NAME = "l.card_company"				VALUE = "{ BasketList.d.bill_comp }">
+		<MvASSIGN NAME = "l.card_address1"				VALUE = "{ BasketList.d.bill_addr }">
+		<MvASSIGN NAME = "l.card_city"					VALUE = "{ BasketList.d.bill_city }">
+		<MvASSIGN NAME = "l.card_state"				VALUE = "{ BasketList.d.bill_state }">
+		<MvASSIGN NAME = "l.card_country"				VALUE = "{ BasketList.d.bill_cntry }">
+		<MvASSIGN NAME = "l.card_zip"					VALUE = "{ BasketList.d.bill_zip }">
+		<MvASSIGN NAME = "l.phone"				VALUE = "{ BasketList.d.bill_phone }">
+		<MvASSIGN NAME = "l.card_fax"					VALUE = "{ BasketList.d.bill_fax }">
+		
+
+		<MvASSIGN NAME = "l.shipname"	VALUE = "{ BasketList.d.ship_fname + BasketList.d.ship_lname  }">
+		<MvASSIGN NAME = "l.company"		VALUE = "{ BasketList.d.ship_comp }">
+		<MvASSIGN NAME = "l.address1"		VALUE = "{ BasketList.d.ship_addr }">
+		<MvASSIGN NAME = "l.city"			VALUE = "{ BasketList.d.ship_city }">
+		<MvASSIGN NAME = "l.state"		VALUE = "{ BasketList.d.ship_state }">
+		<MvASSIGN NAME = "l.zip"			VALUE = "{ BasketList.d.ship_zip }">
+		<MvASSIGN NAME = "l.country"		VALUE = "{ BasketList.d.ship_cntry }">
+
+		<MvASSIGN NAME = "l.fields"			VALUE = "mode,version,client,publisher_name,convert,authtype,orderID,description,
+								order_id,method,card_amount,card_name,email,card_company,card_address1,card_city,card_state,card_country,card_zip,
+								phone,card_fax,shipname,company,address1,city,state,zip,country" >
+		
+		
+		
+		
+		<MvIF EXPR = "{ PlugNPayMethods.d.type EQ 'ECHECK' }">
+			
+			<MvASSIGN NAME = "l.paymethod" VALUE = "onlinecheck">
+			
+			<MvASSIGN NAME = "l.bankname"		VALUE = "{ g.PlugNPay_Bank_Name }">
+			<MvASSIGN NAME = "l.accountnum"	VALUE = "{ g.PlugNPay_Bank_Acct_Num }">
+			<MvASSIGN NAME = "l.accttype"	VALUE = "{ g.PlugNPay_Bank_Acct_Type }">
+			<MvASSIGN NAME = "l.routingnum"	VALUE = "{ g.PlugNPay_Bank_ABA_Code }">
+			<MvASSIGN NAME = "l.checknum"	VALUE = "{ g.PlugNPay_Bank_Check_Num }">
+			
+			<MvASSIGN NAME = "l.fields"				VALUE = "{ l.fields $ ',paymethod,bankname,accountnum,accttype,routingnum,checknum' }">
+		</MvIF>
+		
+		<MvIF EXPR = "{ PlugNPayMethods.d.type EQ 'CC' }">	
+			<MvASSIGN NAME = "l.paymethod" VALUE = "credit">
+			
+			<MvASSIGN NAME = "l.card_number"	VALUE = "{ g.PlugNPay_Card_Num }">
+			
+			<MvIF EXPR = "{ len(ltrim(g.PlugNPay_CardExp_Month)) EQ 1 }">
+				<MvASSIGN NAME = "l.card_exp" VALUE = "{ '0' $ g.PlugNPay_CardExp_Month $ '/' $ g.PlugNPay_CardExp_Year }">		
+			<MvELSE>
+				<MvASSIGN NAME = "l.card_exp" VALUE = "{ g.PlugNPay_CardExp_Month $ '/' $ g.PlugNPay_CardExp_Year }">		
+			</MvIF>
+			
+			<MvIF EXPR = "{ PlugNPayMethods.d.CVV EQ 1}">
+				<MvASSIGN NAME = "l.card_cvv"		VALUE = "{g.PlugNPay_Card_CVV}">
+			<MvELSE>
+				<MvASSIGN NAME = "l.card_cvv"		VALUE = "">
+			</MvIF>
+			<MvASSIGN NAME = "l.fields"		VALUE = "{ l.fields $ ',paymethod,card_number,card_exp,card_cvv' }">	
+		</MvIF>
+
+		<MvIF EXPR = "{ PlugNPayMethods.d.type EQ 'MOCPAY' }">
+			<MvASSIGN NAME = "l.paymethod" VALUE = "mocapay">
+			<MvASSIGN NAME = "l.client" VALUE = "miva">
+			<MvASSIGN NAME = "l.card_number"		VALUE = "{ g.PlugNPay_mcp_moc_code }">
+			<MvASSIGN NAME = "l.mocapaycode"		VALUE = "{ g.PlugNPay_mcp_moc_code }">
+			<MvASSIGN NAME = "l.phone"	VALUE = "{ g.PlugNPay_mcp_cell_phone }">
+			
+			<MvASSIGN NAME = "l.fields"	VALUE = "{ l.fields $ ',paymethod,client,card_number,phone' }">
+		</MvIF>
+
+		<MvIF EXPR = "{ PlugNPayMethods.d.type EQ 'GC' }">
+			<MvASSIGN NAME = "l.paymethod" VALUE = "giftcard">
+			<MvASSIGN NAME = "l.client" VALUE = "miva">
+			<MvASSIGN NAME = "l.mpgiftcard"		VALUE = "{ g.PlugNPay_merc_gc_number }">
+			<MvASSIGN NAME = "l.card_name"	VALUE = "{ g.PlugNPay_merc_gc_name }"> 
+			<MvASSIGN NAME = "l.gcpaytype"	VALUE = "{ g.PlugNPay_merc_gc_paytype }">
+			<MvASSIGN NAME = "l.card_number"	VALUE = "{ g.PlugNPay_Card_Num }">
+			<MvIF EXPR = "{ len(ltrim(g.PlugNPay_CardExp_Month)) EQ 1 }">
+				<MvASSIGN NAME = "l.card_exp" VALUE = "{ '0' $ g.PlugNPay_CardExp_Month $ '/' $ g.PlugNPay_CardExp_Year }">		
+			<MvELSE>
+				<MvASSIGN NAME = "l.card_exp" VALUE = "{ g.PlugNPay_CardExp_Month $ '/' $ g.PlugNPay_CardExp_Year }">		
+			</MvIF>			
+
+			<MvIF EXPR = "{ g.PlugNPay_merc_gc_paytype EQ 'PARTIAL' }">
+				<MvASSIGN NAME = "l.fields"	VALUE = "{ l.fields $ ',mpgiftcard,card_number,card_exp,card_name' }">
+			<MvELSE>
+				<MvASSIGN NAME = "l.fields"	VALUE = "{ l.fields $ ',mpgiftcard,card_name' }">
+			</MvIF>
+		</MvIF>
+
+		<MIVA MvCOMMERCE_Error = "nonfatal, nodisplay">
+		<MvCOMMERCE METAMETHOD = "PlugNPay"
+					ACTION = "{ PlugNPay.d.url }"
+					FIELDS = "{ l.fields }">
+
+			<MvIF EXPR = "{ s.FinalStatus EQ 'problem' }">
+				<MvEVAL EXPR = "<BR> Problem in name  " >
+				<MvCOMMENT>
+				<MvWHILE EXPR = "{ s.FinalStatus EQ 'problem'}">
+					<MvCOMMERCE METAMETHOD = "PlugNPay"
+						ACTION = "{ PlugNPay.d.url }"
+						FIELDS = "{ l.fields }">
+					</MvCOMMERCE>
+				</MvWHILE>
+				</MvCOMMENT>
+			</MvIF>
+			<MvIF EXPR = "{ s.FinalStatus EQ 'success' }">
+				<MvASSIGN NAME = "l.processed" VALUE = 1>
+				<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPayOrders_Insert( BasketList.d.order_id,
+								decodeattribute(s.auth_msg),
+								s.auth_code,
+								s.avs_code,
+								s.orderID,
+								l.card_amount,
+								l.card_number,
+								g.PlugNPay_CardName,
+								l.card_exp,
+								l.card_cvv,
+								s.cvvresp,
+								l.method,
+								l.bankname,
+								l.accountnum,
+								l.accountype,
+								l.routingnum,
+								l.checknum,
+								l.mocapaycode,
+								l.phone,
+								l.mpgiftcard,
+								l.card_name,
+								l.gcpaytype
+								 ) }">
+								 
+				<MvASSIGN NAME = "l.processed" VALUE = 1>
+			<MvELSE>
+				<MvIF EXPR = "{ s.FinalStatus EQ 'fraud' }">
+					<MvIF EXPR = "{ s.cvvresp EQ 'N' }">
+						<MvASSIGN NAME = "g.Authorization_Failure_Message"	VALUE = "No Match">
+					<MvELSE>
+						<MvIF EXPR = "{ s.cvvresp EQ 'P' }">
+							<MvASSIGN NAME = "g.Authorization_Failure_Message"	VALUE = "Not Processed">
+						<MvELSE>
+							<MvIF EXPR = "{ s.cvvresp EQ 'X' }">
+								<MvASSIGN NAME = "g.Authorization_Failure_Message"	VALUE = "Cannot Verify">
+							<MvELSE>
+								<MvIF EXPR = "{ s.cvvresp EQ 'U' }">
+									<MvASSIGN NAME = "g.Authorization_Failure_Message"	VALUE = "Unable to Verify">
+								<MvELSE>
+									<MvIF EXPR = "{ s.cvvresp EQ 'S' }">
+										<MvASSIGN NAME = "g.Authorization_Failure_Message"	VALUE = "Unavailable for Verification">
+									</MvIF>
+								</MvIF>
+							</MvIF>
+						</MvIF>
+					</MvIF>
+				<MvELSE>
+					<MvIF EXPR = "{ len( s.MErrMsg ) }">
+						<MvASSIGN NAME = "g.Authorization_Failure_Message"	VALUE = "{ decodeattribute(s.MErrMsg) }">
+					<MvELSE>
+						<MvASSIGN NAME = "g.Authorization_Failure_Message" VALUE = "{ decodeattribute(s.MErrMsg) }">
+					</MvIF>
+				</MvIF>
+			</MvIF>
+		</MvCOMMERCE>
+		
+<MvCOMMENT>
+		<p>output string is : <MvEVAL EXPR = "<BR>Card Amount"> </p> 
+		<p>output string is : <MvEVAL EXPR = "{l.card_amount}"> </p> 
+		<p>output string is : <MvEVAL EXPR = "<BR>Payment Method"> </p> 
+		<p>output string is : <MvEVAL EXPR = "{l.method}"> </p>	
+		<p>output string is : <MvEVAL EXPR = "<BR>Paramters"> </p>  	
+		<p>output string is : <MvEVAL EXPR = "{l.fields}">
+		<p>output string is : <MvEVAL EXPR = "<BR>"> </p> 
+</MvCOMMENT>		
+		
+
+		<MIVA MvCOMMERCE_Error = "fatal, display">
+			
+			<MvIF EXPR = "{ MvCOMMERCE_Error }">
+				<MvASSIGN NAME = "g.Authorization_Failure_Message" VALUE = "{ MvCOMMERCE_Error }">
+			</MvIF>
+			<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+	</MvIF>
+
+	
+	<MvFUNCTIONRETURN VALUE = "{ l.processed }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Process" PARAMETERS = "data VAR, secure_data VAR" STANDARDOUTPUTLEVEL = "">
+
+	<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+	
+	<MvIF EXPR = "{ l.ok }">
+		<MvFIND NAME = "PlugNPayOrders" VALUE = "{Orders.d.id }" EXACT>
+		<MvIF EXPR = "{ NOT PlugNPayOrders.d.EOF }">
+			<MvIF EXPR = "{ PlugNPay.d.authcap EQ 1}">
+				<MvASSIGN NAME = "l.processed" VALUE = 1>
+			<MvELSE>
+				<MvASSIGN NAME = "l.processed" VALUE = 0>
+				<MvASSIGN NAME = "l.version" VALUE = "1.0">
+				<MvASSIGN NAME = "l.mode" VALUE = "mark">
+				<MvASSIGN NAME = "l.merchant" VALUE = "{ PlugNPay.d.merchant }">
+				<MvASSIGN NAME = "l.publisher-password" VALUE = "{ PlugNPay.d.trankey }">
+				<MvASSIGN NAME = "l.orderID" VALUE = "{ PlugNPayOrders.d.trans_id }">
+				<MvASSIGN NAME = "l.card-amount" VALUE = "{ PlugNPayOrders.d.amount }">
+				<MvASSIGN NAME = "l.fields" VALUE = "mode,merchant,publisher-password,card-amount,orderID">
+	
+
+				<MIVA MvCOMMERCE_Error = "nonfatal, nodisplay">
+				<MvCOMMERCE METAMETHOD = "PlugNPay"
+							ACTION = "{ PlugNPay.d.url }"
+							FIELDS = "{ l.fields }">
+				
+					<MvIF EXPR = "{ s.FinalStatus EQ 'success' }">
+						<MvASSIGN NAME = "l.processed" VALUE = 1>
+						<MvASSIGN NAME = "PlugNPayOrders.d.auth_code"	VALUE = "{ s.auth_code }">
+						<MvASSIGN NAME = "PlugNPayOrders.d.r_r_text" VALUE = "{ decodeattribute(s.auth_msg) }">
+					<MvELSE>
+						<MvIF EXPR = "{ s.FinalStatus EQ 'pending'}">
+							<MvASSIGN NAME = "l.processed" VALUE = 1>
+							<MvASSIGN NAME = "PlugNPayOrders.d.auth_code"	VALUE = "{ s.auth_code }">
+							<MvASSIGN NAME = "PlugNPayOrders.d.r_r_text" VALUE = "{ decodeattribute(s.auth_msg) }">
+						<MvELSE>
+							<MvIF EXPR = "{ len( s.MErrMsg ) }">
+								<MvASSIGN NAME = "PlugNPayOrders.d.r_r_text" VALUE = "{ decodeattribute(s.MErrMsg) }">
+								<MvASSIGN NAME = "g.Authorization_Failure_Message"	VALUE = "{ decodeattribute(s.MErrMsg) }">
+							<MvELSE>
+								<MvASSIGN NAME = "PlugNPayOrders.d.r_r_text" VALUE = "{ decodeattribute(s.MErrMsg) }">
+								<MvASSIGN NAME = "g.Authorization_Failure_Message" VALUE = "{ decodeattribute(s.MErrMsg) }">
+							</MvIF>
+						</MvIF>
+					</MvIF>
+				</MvCOMMERCE>
+
+				<MIVA MvCOMMERCE_Error = "fatal, display">
+
+				<MvIF EXPR = "{ MvCOMMERCE_Error }">
+						<MvASSIGN NAME = "g.Authorization_Failure_Message" VALUE = "{ MvCOMMERCE_Error }">
+						<MvASSIGN NAME = "PlugNPayOrders.d.r_r_text"   VALUE = "{ MvCOMMERCE_Error }">
+				</MvIF>
+				<MvUPDATE NAME = "PlugNPayOrders">
+			</MvIF>
+		</MvIF>
+
+		<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.processed }">
+</MvFUNCTION>
+
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Icons" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Icon" PARAMETERS = "code" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Invoice_Notice" PARAMETERS = "data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Invoice_Icon" PARAMETERS = "data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Invoice_Notice_PlainText_Formated" PARAMETERS = "data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Payment_Notice" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+
+<MvFUNCTION NAME = "PaymentModule_Manipulate_Shipping" PARAMETERS = "data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+
+
+<MvFUNCTION NAME = "PaymentModule_Order_Validate" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Update" PARAMETERS = "data VAR,secure_data VAR" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Delete" PARAMETERS = "data VAR,secure_data VAR" STANDARDOUTPUTLEVEL = "">
+	<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+	<MvIF EXPR = "{ l.ok }">
+		<MvFIND NAME = "PlugNPayOrders" VALUE = "{ Orders.d.id }" EXACT>
+		<MvIF EXPR = "{ NOT PlugNPayOrders.d.EOF }">
+			<MvDELETE NAME = "PlugNPayOrders">
+		</MvIF>
+
+		<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+	</MvIF>
+
+	<MvFUNCTIONRETURN VALUE = "{ l.ok }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Order_Tabs" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "PLUGNPAY:Plug & Pay Technologies Inc. v1.0">
+</MvFUNCTION>
+
+
+<MvFUNCTION NAME = "PaymentModule_Order_Content" PARAMETERS = "tab, load_fields,data,secure_data" STANDARDOUTPUTLEVEL = "text, html, compresswhitespace">
+	<MvASSIGN NAME = "l.ok" VALUE = 1>
+
+	<MvIF EXPR = "{ l.tab EQ 'PLUGNPAY' }">
+		<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Open_Store() }">
+		<MvIF EXPR = "{ l.ok }">
+			<MvFIND NAME = "PlugNPayOrders" VALUE = "{ Orders.d.id }" EXACT>
+			<MvIF EXPR = "{ NOT PlugNPayOrders.d.EOF }">
+				<TABLE BORDER = 0 CELLPADDING = 2 CELLSPACING = 0 WIDTH = "100%">
+
+				<TR><TD NOWRAP>
+					<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+					<B>Method:</B>
+					</FONT>
+				</TD><TD WIDTH = "100%">
+					<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+					<MvEVAL EXPR = "{ PlugNPayOrders.d.method }">
+					</FONT>
+				</TD></TR>
+
+				<MvIF EXPR = "{ PlugNPayOrders.d.method EQ 'CC' }">
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>Name on Card:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.cc_name  }">
+						</FONT>
+					</TD></TR>
+
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>Card Number:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.card_num }">
+						</FONT>
+					</TD></TR>
+
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>Expiration:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.exp_date }">
+						</FONT>
+					</TD></TR>
+					
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>Card CVV2 Number:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.card_cvv}">
+						</FONT>
+					</TD></TR>
+					
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>CVV2 Response :</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.cvvresp}">
+						</FONT>
+					</TD></TR>
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>AVS Code:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.avs_code }">
+						</FONT>
+					</TD></TR>
+				</MvIF>
+				<MvIF EXPR = "{ PlugNPayOrders.d.method EQ 'ECHECK' }">
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>Bank Name:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.bank_name }">
+						</FONT>
+					</TD></TR>
+
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>Bank ABA Code:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.aba_code }">
+						</FONT>
+					</TD></TR>
+					
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>Check Number:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.check_num}">
+						</FONT>
+					</TD></TR>
+					
+
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>Account Number:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.acct_num }">
+						</FONT>
+					</TD></TR>
+
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>Account Type:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.acct_type }">
+						</FONT>
+					</TD></TR>
+				</MvIF>
+
+				<MvIF EXPR = "{ PlugNPayOrders.d.method EQ 'MOCPAY' }">
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>Cell Phone:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.cell_phone}">
+						</FONT>
+					</TD></TR>
+					
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>Mocapay Code:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.moc_code }">
+						</FONT>
+					</TD></TR>
+
+					
+				</MvIF>
+
+				<MvIF EXPR = "{ PlugNPayOrders.d.method EQ 'GC' }">
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>Payment Type:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.gc_paytype }">
+						</FONT>
+					</TD></TR>
+					
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>GiftCard Number:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.gc_number}">
+						</FONT>
+					</TD></TR>
+					
+					<TR><TD NOWRAP>
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<B>Name on Card:</B>
+						</FONT>
+					</TD><TD WIDTH = "100%">
+						<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+						<MvEVAL EXPR = "{ PlugNPayOrders.d.gc_name }">
+						</FONT>
+					</TD></TR>
+
+					<MvIF EXPR = "{ PlugNPayOrders.d.gc_paytype EQ 'PARTIAL' }">
+
+						<TR><TD NOWRAP>
+							<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+							<B>Card Number:</B>
+							</FONT>
+						</TD><TD WIDTH = "100%">
+							<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+							<MvEVAL EXPR = "{ PlugNPayOrders.d.card_num }">
+							</FONT>
+						</TD></TR>
+	
+						<TR><TD NOWRAP>
+							<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+							<B>Expiration:</B>
+							</FONT>
+						</TD><TD WIDTH = "100%">
+							<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+							<MvEVAL EXPR = "{ PlugNPayOrders.d.exp_date }">
+							</FONT>
+						</TD></TR>
+					</MvIF>
+				</MvIF>
+
+				<TR><TD NOWRAP>
+					<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+					<B>Transaction ID:</B>
+					</FONT>
+				</TD><TD WIDTH = "100%">
+					<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+					<MvEVAL EXPR = "{ PlugNPayOrders.d.trans_id }">
+					</FONT>
+				</TD></TR>
+
+				<TR><TD NOWRAP>
+					<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+					<B>Response Reason Text:</B>
+					</FONT>
+				</TD><TD WIDTH = "100%">
+					<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+					<MvEVAL EXPR = "{ PlugNPayOrders.d.r_r_text }">
+					</FONT>
+				</TD></TR>
+
+				<TR><TD NOWRAP>
+					<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+					<B>Authorization Code:</B>
+					</FONT>
+				</TD><TD WIDTH = "100%">
+					<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+					<MvEVAL EXPR = "{ PlugNPayOrders.d.auth_code }">
+					</FONT>
+				</TD></TR>
+
+				<TR><TD NOWRAP>
+					<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+					<B>Authorization Date & Time:</B>
+					</FONT>
+				</TD><TD WIDTH = "100%">
+					<FONT FACE = "Arial, Helvetica" SIZE = "-1">
+					<MvEVAL EXPR = "{ padl( time_t_month( PlugNPayOrders.d.time, timezone() ), 2, '0') $ '/' $ padl( time_t_dayofmonth( PlugNPayOrders.d.time, timezone() ), 2, '0')
+									$ '/' $ time_t_year( PlugNPayOrders.d.time, timezone() ) $ ' - ' $ padl( time_t_hour( PlugNPayOrders.d.time, timezone() ), 2, '0' )
+									$ ':' $ padl( time_t_min( PlugNPayOrders.d.time, timezone() ), 2, '0' ) $ ':' $ padl( time_t_sec( PlugNPayOrders.d.time, timezone() ), 2, '0' )
+									$ ' ' $ stm_zone }">
+					</FONT>
+				</TD></TR>
+				</TABLE>
+
+			</MvIF>
+
+			<MvASSIGN NAME = "l.ok" VALUE = "{ PlugNPay_Close_Store() }">
+		</MvIF>
+	</MvIF>
+	<MvFUNCTIONRETURN VALUE = "{ l.ok }">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_Upgrade_Order" PARAMETERS = "version_from, order_id, data, secure_data" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "PaymentModule_LeftNavigation" PARAMETERS = "indent" STANDARDOUTPUTLEVEL = "">
+	indent = ""
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvCOMMENT>
+	************************************ Module Affiliates Functions ************************************ .
+	
+</MvCOMMENT>
+
+
+<MvFUNCTION NAME = "Module_Affiliates_Tabs"  STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+
+<MvFUNCTION NAME = "Module_Affiliates_Content" PARAMETERS = "tab, load_fields" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Affiliates_Validate"  STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Affiliates_Update"  STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Affiliates_Delete"  STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Affiliate_Tabs" PARAMETERS = "affiliate_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+
+<MvFUNCTION NAME = "Module_Affiliate_Content" PARAMETERS = "tab, load_fields, affiliate_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Affiliate_Validate"  STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Affiliate_Update"  PARAMETERS = "affiliate_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Affiliate_Delete"  PARAMETERS = "affiliate_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Affiliate_BatchEdit_Validate"  STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+
+<MvFUNCTION NAME = "Module_Affiliate_BatchEdit_Update" PARAMETERS="id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+
+<MvCOMMENT>
+	************************************ Module Category Functions ************************************ .
+</MvCOMMENT>
+
+<MvFUNCTION NAME = "Module_Category_Validate" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Category_Update" PARAMETERS = "category_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Category_Delete" PARAMETERS = "category_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Category_Tabs" PARAMETERS = "category_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Category_Content" PARAMETERS = "tab, load_fields, category_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Category_BatchEdit_Validate" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+<MvFUNCTION NAME = "Module_Category_BatchEdit_Update" PARAMETERS = "id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+
+<MvCOMMENT>
+	************************************ Module Product Functions ************************************ .
+</MvCOMMENT>
+
+
+<MvFUNCTION NAME = "Module_Product_Tabs" PARAMETERS = "product_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Product_Content" PARAMETERS = "tab, load_fields, product_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Product_Validate" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Product_Update" PARAMETERS = "product_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Product_Delete" PARAMETERS = "product_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = 1>
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Product_BatchEdit_Validate" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+
+<MvFUNCTION NAME = "Module_Product_BatchEdit_Update" PARAMETERS = "id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+
+
+
+<MvCOMMENT>
+	************************************ Module Customer Functions ************************************ .
+</MvCOMMENT>
+
+<MvFUNCTION NAME = "Module_Customer_Tabs" PARAMETERS = "cust_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Customer_Content" PARAMETERS = "tab, load_fields, cust_id" STANDARDOUTPUTLEVEL = "">
+	<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Customer_Validate" STANDARDOUTPUTLEVEL = "">
+<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Customer_Update" PARAMETERS = "cust_id" STANDARDOUTPUTLEVEL = "">
+<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Customer_Delete" PARAMETERS = "cust_id" STANDARDOUTPUTLEVEL = "">
+<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+
+<MvFUNCTION NAME = "Module_Customer_BatchEdit_Validate"  STANDARDOUTPUTLEVEL = "">
+<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Customer_BatchEdit_Update"  PARAMETERS = "cust_id" STANDARDOUTPUTLEVEL = "">
+<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Customer_Validate_Runtime"  STANDARDOUTPUTLEVEL = "">
+<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION>
+
+<MvFUNCTION NAME = "Module_Customer_Update_Runtime" PARAMETERS = "cust_id" STANDARDOUTPUTLEVEL = "">
+<MvFUNCTIONRETURN VALUE = "1">
+</MvFUNCTION> 

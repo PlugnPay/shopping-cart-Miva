@@ -1,0 +1,50 @@
+====================================================
+PlugnPay Remote API Module
+Payment module for Miva Merchant v2.x (Unix)
+====================================================
+
+***** IMPORTANT NOTES *****
+This module is provided "AS IS". Limited technical support assistance
+will be given to help diagnose/address problems with this module.
+
+- Declared in plugnpay.mv: Miva Merchant v2.x
+- Module_API_Version: 2.1
+- Module_Version: 2.11
+- Posts to https://pay1.plugnpay.com/payment/pnpremote.cgi
+- Card data is collected on your Miva storefront (PCI scope).
+- Use the archive that matches your OS (Linux, FreeBSD, or Solaris).
+***************************
+
+To Install:
+
+1. Download the matching package from this folder:
+     miva_2.x_linux_api_module.tar.gz
+     miva_2.x_freebsd_api_module.tar.gz
+     miva_2.x_solaris_api_module.tar.gz
+   (or use the src/ tree in this repository).
+
+2. Extract the archive. You should have:
+     plugnpay.mv
+     pnpmiva.so
+
+3. Register pnpmiva.so as a Miva commerce library:
+     - Method / library name must be exactly: PlugNPay
+     - Place the .so where your Miva Empresa/commerce config expects
+       commerce libraries for this OS.
+
+4. In Miva admin:
+     - Modules → Add Module → upload plugnpay.mv
+     - Stores → your store → Payment Configuration
+     - Enable "Plug & Pay Technologies Inc. v1.0" and Update
+     - Open the PlugNPay configuration tab and set publisher /
+       gateway account settings
+
+5. Run a test authorization. Capture / void / refund for auth-only
+   transactions are done in PlugnPay Merchant Admin when applicable.
+
+Common problems:
+
+- "method PlugNPay does not exist" — commerce library not registered,
+  or the method name is not exactly PlugNPay (case-sensitive).
+- Wrong OS binary — Linux, FreeBSD, and Solaris .so files are not
+  interchangeable (Solaris build is SPARC).

@@ -1,0 +1,375 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                   PlugNPay Payment Module  Release Notes
+
+                                Version: 1.1
+
+
+
+
+
+
+
+
+
+                                Date: 24.01.08
+
+
+
+(The following section to be included with all versions of the report.)
+|Project     |PlugNPay Payment Module  |Project      |Version 1.1 |
+|Name:       |                         |Number:      |            |
+|Project     |Rahul Mitha, Vitthal Bhapkar                         |
+|Manager:    |                                                     |
+|Project     |                                                     |
+|Sponsor:    |                                                     |
+|Prepared/   |Sandip Bhagwat           |Date         |24th        |
+|Revised By: |                         |Prepared/    |-Jan-2008   |
+|            |                         |Revised:     |            |
+|Revision    |                         |Revision     |            |
+|Reason:     |                         |Control#:    |            |
+
+
+(The following section to be included with the final version of the report,
+to provide signature authorization for approval to proceed to next phase.)
+
+|AUTHORIZATION TO PROCEED                                           |
+|Approved By:-                          |January 24, 2008            |
+|Name: Ashutosh Kumar Dubey             |Date: January 25, 2008      |
+| |(Customer Sponsor)                                             | |
+| |                                                               | |
+| |(Customer Management)                                          | |
+| |                                                               | |
+| |(<Client Name> Sponsor)                                        | |
+| |PlugNPay, David Price                                          | |
+| |(<Client Name> Group Manager)                                  | |
+| |                                                               | |
+| |(Senior <Client Name> Management)                              | |
+| |                                                               | |
+| |(Steering Committee Member)                                    | |
+| |                                                               | |
+| |(Steering Committee Member)                                    | |
+| |                                                               | |
+| |(Steering Committee Member)                                    | |
+| |                                                               | |
+| |(Steering Committee Member)                                    | |
+| |                                                               | |
+                              Table of Contents
+
+
+
+
+1.    Introduction     4
+
+
+2.    Minimum Requirements for PlugNPay 5
+
+
+3.    API Configuration      6
+
+
+4.    Module Setup     9
+
+
+5.    Issues and Bug fixes   12
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    Introduction
+
+This document describes the configuration and use of the module itself, and
+assumes the reader has a familiarity with the use of the Miva Merchant
+administration and runtime interfaces.
+
+In versions of Miva Merchant below 4.14 the non-compiled plugnpay.mv file
+should be used, in versions of Miva Merchant 4.14 and above the compiled
+plugnpay.mvc file should be used.
+
+PlugNPay  Payment  Module  is   the   recommended   module   of   submitting
+transactions to the payment gateway. This module allows a merchant’s  server
+to securely connect directly to the payment gateway  to  submit  transaction
+data. The merchant retains full control of the payment data  collection  and
+the user experience. This module requires merchants to be able  to  initiate
+and manage different payment methods.
+
+How does PlugNPay Payment Module Works: -
+
+When using plugnpay, transactions flow in the following way:
+   1) The Customers browser connects securely to the Merchants server to
+      transmit payment information.
+   2) The Merchants server initiates a secure connection to the payment
+      gateway and then initiates HTTPS post of the transaction data to the
+      gateway server.
+   3) The payment gateway receives and processes the transaction data.
+   4) The payment gateway then generates and submits the transaction
+      response to the Merchants server.
+   5) The merchant server receives and processes the response.
+   6) Finally, the merchant’s server communicates the success or failure of
+      the authorization to the customer browser.
+
+
+    Minimum Requirements for PlugNPay
+
+Following is the minimum set of Name/Value pairs that must be submitted to
+the payment gateway for each transaction.
+
+
+
+|Variable|Require|Max    |Value                                          |
+|        |d      |Size   |                                               |
+|paymetho|Mandato|NA     |Name of the payment method.                    |
+|d       |ry     |       |                                               |
+|card-amo|Mandato|10     |No '$' – Total amount to be charged.           |
+|unt     |ry     |       |Format: 1234.56.                               |
+|card-nam|Mandato|39     |Name as it appears on credit card (aka-the     |
+|e       |ry     |       |customer's name).                              |
+|card-add|Optiona|39     |Billing Street Address Line 1.                 |
+|ress1   |l      |       |                                               |
+|card-add|Optiona|39     |Billing Street Address Line 2.                 |
+|ress2   |l      |       |(see note 1)                                   |
+|card-cit|Optiona|39     |Billing City Address.                          |
+|y       |l      |       |                                               |
+|card-sta|Optiona|2      |Billing State Address – 2 Char. State Code –   |
+|te      |l      |       |see Appendix for details.                      |
+|card-pro|Optiona|39     |Billing International Province.  For           |
+|v       |l      |       |international provinces outside of US & Canada,|
+|        |       |       |set the 'card-state' field's value to 'ZZ' &   |
+|        |       |       |include the province name here.                |
+|card-zip|Optiona|10     |Billing Zip Address.                           |
+|        |l      |       |                                               |
+|card-cou|Optiona|2      |Billing 2 Character Country Code – see Appendix|
+|ntry    |l      |       |for country code listing.                      |
+|card-num|Mandato|16     |Credit Card # - Numeric characters only.       |
+|ber     |ry     |       |Format: 4111111111111111.                      |
+|card-exp|Mandato|5      |Credit Card Expiration Date. Format: MM/YY.    |
+|        |ry     |       |                                               |
+
+
+   1) Following are the parameters to be sent for the Electronic Check
+      transaction
+
+|Variable  |Required|Max    |Notes                                       |
+|          |        |Size   |                                            |
+|paymethod |Mandator|NA     |Name of the payment method.                 |
+|          |y       |       |                                            |
+|card-amoun|Mandator|10     |No "$" - Total amount of the order.         |
+|t         |y       |       |                                            |
+|bankname  |Mandator|NA     |Value need to be set to the Bank Name.      |
+|          |y       |       |                                            |
+|accountnum|Mandator|NA     |Value set to the Bank account number.       |
+|          |y       |       |                                            |
+|accountnam|Optional|NA     |Value set to the name of account holder.    |
+|e         |        |       |                                            |
+|accttype  |Mandator|NA     |There are two account types; Checking and   |
+|          |y       |       |Saving                                      |
+|routingnum|Mandator|NA     |Value set to the 9 digit Routing number.    |
+|          |y       |       |                                            |
+|checknum  |Mandator|NA     |Value set to the 9 digit check number.      |
+|          |y       |       |                                            |
+
+
+
+   2) Following are the parameters to be sent for the Mocapay transaction
+
+|Variable|Require|Max Size|Value                                          |
+|        |d      |        |                                               |
+|card-amo|Mandato|10      |No "$" - Total amount of the order.            |
+|unt     |ry     |        |                                               |
+|mpgiftca|Mandato|20      |Value need to be set to the gift card number.  |
+|rd      |ry     |        |                                               |
+|card-nam|Mandato|39      |Name as it appears on credit card (aka - the   |
+|e       |ry     |        |customer's name).                              |
+|card-add|Optiona|39      |Billing Street Address Line 1.                 |
+|ress1   |l      |        |                                               |
+|card-add|Optiona|39      |Billing Street Address Line 2.                 |
+|ress2   |l      |        |                                               |
+|card-cit|Optiona|39      |Billing City Address.                          |
+|y       |l      |        |                                               |
+|card-sta|Optiona|2       |Billing State Address – 2 Char. State Code –   |
+|te      |l      |        |see Appendix for details.                      |
+|card-pro|Optiona|39      |Billing International Province.  For           |
+|v       |l      |        |international provinces outside of US & Canada,|
+|        |       |        |set the 'card-state' field's value to 'ZZ' &   |
+|        |       |        |include the province name here.                |
+|card-zip|Optiona|10      |Billing Zip Address.                           |
+|        |l      |        |                                               |
+|card-cou|Optiona|2       |Billing 2 Character Country Code – see Appendix|
+|ntry    |l      |        |for country code listing.                      |
+
+Mercury Payment GiftCard - Authorization - Unsure/Partial Gift Card Amount
+When you know ahead of time or if you suspect that the value on the
+GiftCard is insufficient, you should submit both the Gift card number & the
+customer's Credit Card data.
+Variable |Required |Max Size |Value |Notes | |card-amount |Mandatory |10 | 
+|No "$" - Total amount of the order. | |mpgiftcard |Mandatory |20 |  |Value
+need to be set to the gift card number. | |card-number |Mandatory |16 | 
+|Credit Card # - Numeric characters only.
+Format: 4111111111111111. | |card-exp |Mandatory |5 |  |Credit Card
+Expiration Date. Format: MM/YY. | |card-cvv |Optional/Fraud |4 |  |Credit
+Card CVV Number. Mandatory for fraud protection. | |card-name |Mandatory
+|39 |  |Name as it appears on credit card (aka - the customer's name). |
+|card-address1 |Optional |39 |  |Billing Street Address Line 1. | |card-
+address2 |Optional |39 |  |Billing Street Address Line 2. | |card-city
+|Optional |39 |  |Billing City Address. | |card-state |Optional |2 | 
+|Billing State Address – 2 Char. State Code – see Appendix for details. |
+|card-prov |Optional |39 |  |Billing International Province.  For
+international provinces outside of US & Canada, set the 'card-state'
+field's value to 'ZZ' & include the province name here. | |card-zip
+|Optional |10 |  |Billing Zip Address.  | |card-country |Optional |2 | 
+|Billing 2 Character Country Code – see Appendix for country code listing.
+| |
+
+    Module Setup
+
+
+
+Use the following procedure to add  plugnpay.mvc  payment  modules  to  your
+Miva Merchant domain.
+Miva Merchant 4.14 and above: Miva Merchant is compiled.  Any  added  module
+must  also  be  compiled.  The  .mvc  identifies  compiled   Miva   Merchant
+applications and modules.
+
+1) Click the triangle next to Modules.
+2) Click Add Module.
+
+[pic]
+
+ 3 If you know the module name, enter it and go to step 5.
+ 4 If you do not know the module name, click the Upload File button.
+
+[pic]
+
+   The Upload File screen is displayed.
+   a. Use the Browse... button to find the module on your system.
+   b. You are uploading a new module that is not in your Miva Merchant
+domain.
+     Therefore, you do not need to click the Overwrite check box.
+   c. Click the Upload button to return to the Add Module form.
+
+
+[pic]
+
+
+ 5 In the Add Module screen, click the Add button.
+ 6 To undo your steps, click the Reset button to delete the module from  the
+   Domain.
+
+[pic]
+ 7 After you click the Add button, the module (A New Payment Module  in  the
+   sample below) is added to the module list as the last item.
+ 8 The module is enabled at the store level by checking the box next to Plug
+   & Pay Technologies Inc. v1.0 and passing the update button.
+
+[pic]
+
+9) Once the module has been enabled a new tab will appear called “Plug &
+   Pay Technologies Inc. v1.0”.
+
+[pic]
+
+
+
+
+ 1  This new tab is where you will find all the configuration options for
+   the module.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    Issues and Bug fixes
+
+
+Release 1.1
+
+
+        Known issue
+
+        Following are the transaction types which are not tested with real
+        time data:
+
+           1) Gift Card Transactions
+
+           2) Mocapay Transactions
+
+
+
